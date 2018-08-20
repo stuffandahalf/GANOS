@@ -1,5 +1,5 @@
     [BITS 16]
-    org 0x7C00
+    org 0x7c00
     
 jump:
     jmp _start
@@ -18,7 +18,7 @@ number_of_fats:
 number_of_root_dirs:
     dw 224
 total_logical_sectors_2_0:
-    dw 2880
+    dw 2880     ; 3.5" 1.44MB
 media_descriptor:
     db 0xF0
 logical_sectors_per_fat:
@@ -34,15 +34,37 @@ hidden_sectors_before_fat_count:
 total_logical_sectors_3_31:
     dq 0
 
+string db 'Ganix boot stage 0', 0
 
 _start:
-    mov ah, 0Eh
-    mov al, '!'
-    int 10h    
     
+    mov si, string
+    call print
+    
+    xor ax, ax
+    mov ds, ax
+    mov ss, ax
+    mov sp, 0x9c00
+
+    cli
+    
+
 halt:
     nop
     jmp halt
+
+
+print:
+.loop:
+    mov ah, 0Eh
+    lodsb
+    cmp al, 0
+    jz .end
+    int 10h
+    jmp .loop
+.end:
+    ret
+
     
     times 509 - ($ - $$) db 0
     
@@ -50,4 +72,5 @@ drive_num:
     db 0
     
 boot_sig:
-    dw 0xAA55
+    db 0x55
+    db 0xAA
