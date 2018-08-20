@@ -46,13 +46,23 @@ _start:
     ;mov ss, ax
     ;mov sp, 0x9c00
 
-    ;cli
+    cli
 
+    ; print state of a20 line
     call check_a20
     add al, '0'
     mov [a20_state], al
     mov si, a20_string
     call print
+
+    ; load global descriptor table
+    lgdt [gdtr]
+
+    ; enable protected mode
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+
     jmp halt
 
 a20_string:
@@ -63,18 +73,25 @@ halt:
     nop
     jmp halt
 
+gdtr:
+    dw 0
+    dd 0
+
+
+    [BITS 16]
 check_a20:
+    ; preserve state
     pushf
     push ds
     push es
     push di
     push si
-    
-    ;cli
 
+    ; clear ax and es
     xor ax, ax
     mov es, ax
     
+    ; load ds with 0xFFFF
     not ax
     mov ds, ax
     
