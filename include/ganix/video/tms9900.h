@@ -1,6 +1,8 @@
 #ifndef _TMS9900_H
 #define _TMS9900_H
 
+#include <ganix/video/video.h>
+
 #define _TMS9900_COLOUR_TRANSPARENT 0x0
 #define _TMS9900_COLOUR_BLACK       0x1
 #define _TMS9900_COLOUR_MEDGREEN    0x2
@@ -18,6 +20,7 @@
 #define _TMS9900_COLOUR_GREY        0xE
 #define _TMS9900_COLOUR_WHITE       0xF
 
-void init();
+int init_tms9900_video();
+void tms9900_plot_pixel(unsigned int x, unsigned int y, uint8_t colour);
 
 #endif

@@ -7,6 +7,10 @@ floppy.img: boot.bin
 boot.bin: boot.asm
 	$(AS) -f bin -o $@ $<
 
+.PHONY: test
+test: floppy.img
+	qemu-system-i386 -fda $<
+
 .PHONY: clean
 clean:
 	rm -f boot.bin

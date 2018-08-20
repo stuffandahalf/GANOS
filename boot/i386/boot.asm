@@ -41,28 +41,85 @@ _start:
     mov si, string
     call print
     
-    xor ax, ax
-    mov ds, ax
-    mov ss, ax
-    mov sp, 0x9c00
+    ;xor ax, ax
+    ;mov ds, ax
+    ;mov ss, ax
+    ;mov sp, 0x9c00
 
-    cli
-    
+    ;cli
+
+    call check_a20
+    add al, '0'
+    mov [a20_state], al
+    mov si, a20_string
+    call print
+    jmp halt
+
+a20_string:
+    db 'line a20 is '
+a20_state: db 0, 0
 
 halt:
     nop
     jmp halt
 
+check_a20:
+    pushf
+    push ds
+    push es
+    push di
+    push si
+    
+    ;cli
+
+    xor ax, ax
+    mov es, ax
+    
+    not ax
+    mov ds, ax
+    
+    mov di, 0x0500
+    mov si, 0x0510
+
+    mov al, [es:di]
+    push ax
+    
+    mov al, [ds:si]
+    push ax
+
+    mov byte [es:di], 0x00
+    mov byte [ds:si], 0xFF
+    cmp byte [es:di], 0xFF
+    
+    pop ax
+    mov byte [ds:si], al
+
+    pop ax
+    mov byte [es:di], al
+
+    mov ax, 0
+    je .end
+    
+    mov ax, 1
+.end:
+    pop si
+    pop di
+    pop es
+    pop ds
+    popf
+    ret
 
 print:
-.loop:
+    push ax
     mov ah, 0Eh
+.loop:
     lodsb
     cmp al, 0
     jz .end
     int 10h
     jmp .loop
 .end:
+    pop ax
     ret
 
     

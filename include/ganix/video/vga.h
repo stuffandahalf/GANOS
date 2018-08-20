@@ -18,6 +18,6 @@
 #define _VGA_COLOUR_LTYELLOW    0xE
 #define _VGA_COLOUR_WHITE       0xF
 
-void init();
+int init_vga_video();
 
 #endif
