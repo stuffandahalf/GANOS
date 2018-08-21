@@ -34,101 +34,17 @@ hidden_sectors_before_fat_count:
 total_logical_sectors_3_31:
     dq 0
 
-string db 'Ganix boot stage 0', 0
+string db 'Hello World', 0
 
 _start:
-    
     mov si, string
     call print
     
-    ;xor ax, ax
-    ;mov ds, ax
-    ;mov ss, ax
-    ;mov sp, 0x9c00
-
-    cli
-
-    ; print state of a20 line
-    call check_a20
-    add al, '0'
-    mov [a20_state], al
-    mov si, a20_string
-    call print
-
-    ; load global descriptor table
-    lgdt [gdtr]
-
-    ; enable protected mode
-    mov eax, cr0
-    or al, 1
-    mov cr0, eax
-
-    [BITS 32]
-    
-
-    jmp halt
-
-a20_string:
-    db 'line a20 is '
-a20_state: db 0, 0
 
 halt:
     ;nop
     hlt
     jmp halt
-
-gdtr:
-    dw 0
-    dd 0
-
-
-    [BITS 16]
-check_a20:
-    ; preserve state
-    pushf
-    push ds
-    push es
-    push di
-    push si
-
-    ; clear ax and es
-    xor ax, ax
-    mov es, ax
-    
-    ; load ds with 0xFFFF
-    not ax
-    mov ds, ax
-    
-    mov di, 0x0500
-    mov si, 0x0510
-
-    mov al, [es:di]
-    push ax
-    
-    mov al, [ds:si]
-    push ax
-
-    mov byte [es:di], 0x00
-    mov byte [ds:si], 0xFF
-    cmp byte [es:di], 0xFF
-    
-    pop ax
-    mov byte [ds:si], al
-
-    pop ax
-    mov byte [es:di], al
-
-    mov ax, 0
-    je .end
-    
-    mov ax, 1
-.end:
-    pop si
-    pop di
-    pop es
-    pop ds
-    popf
-    ret
 
 print:
     push ax
