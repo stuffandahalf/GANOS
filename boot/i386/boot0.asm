@@ -12,7 +12,7 @@ sector_size:
 logical_sectors_per_cluster:
     db 32
 reserved_logical_sector_count:
-    dw 1
+    dw 18
 number_of_fats:
     db 2
 number_of_root_dirs:
@@ -63,6 +63,9 @@ _start:
     or al, 1
     mov cr0, eax
 
+    [BITS 32]
+    
+
     jmp halt
 
 a20_string:
@@ -70,7 +73,8 @@ a20_string:
 a20_state: db 0, 0
 
 halt:
-    nop
+    ;nop
+    hlt
     jmp halt
 
 gdtr:

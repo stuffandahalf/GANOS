@@ -1,17 +1,18 @@
 AS = nasm
 
-floppy.img: boot.bin
+floppy.img: boot0.bin boot1.bin
 	dd if=/dev/zero of=floppy.img bs=1024 count=1440
-	dd if=boot.bin of=floppy.img seek=0 count=1 conv=notrunc
+	dd if=boot0.bin of=floppy.img seek=0 count=1 conv=notrunc
+	dd if=boot1.bin of=floppy.img seek=1 count=17 conv=notrunc
 
-boot.bin: boot.asm
+%.bin: %.asm
 	$(AS) -f bin -o $@ $<
 
-.PHONY: test
-test: floppy.img
+.PHONY: run
+run: floppy.img
 	qemu-system-i386 -fda $<
 
 .PHONY: clean
 clean:
-	rm -f boot.bin
+	rm -f *.bin
 	rm -f floppy.img
