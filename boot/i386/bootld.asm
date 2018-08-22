@@ -36,17 +36,20 @@ total_logical_sectors_3_31:
 
 string db 'Ganix boot stage 0', 0
 
+cf_state db 'CF is currently '
+.value db 0, 0
+
 _start:
     
     mov si, string
     call print
     
-    ;xor ax, ax
-    ;mov ds, ax
-    ;mov ss, ax
-    ;mov sp, 0x9c00
+    xor ax, ax
+    mov ds, ax
+    mov ss, ax
+    mov sp, 0x9c00
 
-    cli
+    ;cli
 
     ; print state of a20 line
     call check_a20
@@ -55,7 +58,7 @@ _start:
     mov si, a20_string
     call print
 
-    ; load global descriptor table
+     load global descriptor table
     lgdt [gdtr]
 
     ; enable protected mode

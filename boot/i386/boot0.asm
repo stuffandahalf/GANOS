@@ -30,9 +30,9 @@ physical_sectors_per_track:
 number_of_heads:
     dw 2
 hidden_sectors_before_fat_count:
-    dq 0
+    dd 0
 total_logical_sectors_3_31:
-    dq 0
+    dd 0
 
 string db 'Hello World', 0
 
@@ -40,6 +40,23 @@ _start:
     mov si, string
     call print
     
+    mov ah, 0x00
+    int 13h
+
+    mov ax, 0
+    mov es, ax
+    mov bx, 1000h
+
+    mov ah, 2
+    mov al, 1
+    mov ch, 0
+    mov cl, 2
+    mov dh, 0
+    int 13h
+
+    jmp 0x0000:0x1000
+
+
 
 halt:
     ;nop

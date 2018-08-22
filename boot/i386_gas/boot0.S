@@ -2,6 +2,7 @@
 .global _start
 
 jump:
+#    jmp $0x0000, $_start
     jmp _start
     nop
 
@@ -35,15 +36,52 @@ hidden_sectors_before_fat:
 total_logical_sectors_3_31:
     .long 0
 
-string: .asciz "Hello World"
+string: .asciz "Hello World\r\n"
+
+load_status: .ascii "cf state is: "
+var: .byte 0
+line_feed: .asciz "\r\n"
+
 
 _start:
+    xor %ax, %ax
+#    movw %ax, %cs
+    movw %ax, %ds
+    movw %ax, %es
+
+    movw %ax, %ss
+    movw $0x9c00, %sp
+
+    #cld
+
     movw $string, %si
     call print
+
+    movb $0x00, %ah
+    int $0x13
+
+    movw $0x00, %ax
+    movw %ax, %es
+    movw $0x1000, %bx
+    
+    movb $2, %ah
+    movb $1, %al
+    movb $0, %ch
+    movb $2, %cl
+    movb $0, %dh
+    int $0x13
+
+    jmp $0x0000, $0x1000
 
 halt:
     nop
     jmp halt
+
+edit_cf_state:
+    movw %cx, %ax
+    addb $'0', %al
+    movb %al, (var)
+    ret
 
 print:
     pushw %ax
@@ -55,10 +93,12 @@ print:
     int $0x10
     jmp .loop
 .end:
+    
     popw %ax
     ret
 
     .= jump + 509
+
 drive_num:
     .byte 0
 boot_sig:
