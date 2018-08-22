@@ -1,8 +1,7 @@
 .code16
 .global _start
-
+top:
 jump:
-#    jmp $0x0000, $_start
     jmp _start
     nop
 
@@ -36,68 +35,56 @@ hidden_sectors_before_fat:
 total_logical_sectors_3_31:
     .long 0
 
-string: .asciz "Hello World\r\n"
-
-load_status: .ascii "cf state is: "
-var: .byte 0
-line_feed: .asciz "\r\n"
-
+string: .asciz "Ganix boot stage 0\r\n"
 
 _start:
     xor %ax, %ax
-#    movw %ax, %cs
     movw %ax, %ds
     movw %ax, %es
 
     movw %ax, %ss
     movw $0x9c00, %sp
 
-    #cld
-
     movw $string, %si
     call print
 
+reset_fd:
     movb $0x00, %ah
     int $0x13
 
-    movw $0x00, %ax
+load_second_sector:
+    xor %ax, %ax
     movw %ax, %es
     movw $0x1000, %bx
-    
-    movb $2, %ah
-    movb $1, %al
-    movb $0, %ch
-    movb $2, %cl
-    movb $0, %dh
+
+    movb $2, %ah    # function number
+    movb $17, %al   # number of sectors to read
+    movb $0, %ch    # track
+    movb $2, %cl    # start sector
+    movb $0, %dh    # head
     int $0x13
 
-    jmp $0x0000, $0x1000
+    ljmp $0x0000, $0x1000
+    #ljmp (%es), $0x1000
+    #ljmp %es:(%bx)
+    #ljmp %es:0x1000
+#rpt: jmp rpt
 
-halt:
-    nop
-    jmp halt
-
-edit_cf_state:
-    movw %cx, %ax
-    addb $'0', %al
-    movb %al, (var)
-    ret
 
 print:
     pushw %ax
     movb $0x0E, %ah
 .loop:
     lodsb
-    cmpb $0, %al
+    or %al, %al
     jz .end
     int $0x10
     jmp .loop
 .end:
-    
     popw %ax
     ret
 
-    .= jump + 509
+    .= top + 509
 
 drive_num:
     .byte 0

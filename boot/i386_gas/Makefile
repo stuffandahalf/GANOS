@@ -27,4 +27,4 @@ run: boot0.bin
 
 .PHONY: test
 test: floppy.img
-	qemu-system-i386 -fda $<
+	qemu-system-i386 -s -fda $<
