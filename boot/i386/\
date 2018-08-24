@@ -57,7 +57,7 @@ load_sectors:
     int 13h
 
     ;jmp 0x0000:0x1000
-    jmp [es:bx]
+    jmp far [es:bx]
 
 
 halt:

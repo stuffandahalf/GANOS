@@ -1,10 +1,14 @@
     [BITS 16]
     org 0x1000
+
     mov si, msg
     call print
-    hlt
 
-msg: db 'Hello from second sector', 0
+halt:
+    nop
+    jmp halt
+
+msg: db `Ganix boot stage 1\r\n`, 0
 
 print:
     push ax

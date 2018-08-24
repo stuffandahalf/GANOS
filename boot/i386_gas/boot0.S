@@ -3,6 +3,7 @@
 top:
 jump:
     jmp _start
+    #jmp jump
     nop
 
 oem:
@@ -35,6 +36,9 @@ hidden_sectors_before_fat:
 total_logical_sectors_3_31:
     .long 0
 
+#.equ loaded_seg, 0x0000
+#.equ loaded_offset, 0x1000
+
 string: .asciz "Ganix boot stage 0\r\n"
 
 _start:
@@ -64,12 +68,12 @@ load_second_sector:
     movb $0, %dh    # head
     int $0x13
 
+/*halt:
+    nop
+    jmp halt*/
     ljmp $0x0000, $0x1000
-    #ljmp (%es), $0x1000
     #ljmp %es:(%bx)
-    #ljmp %es:0x1000
-#rpt: jmp rpt
-
+    
 
 print:
     pushw %ax

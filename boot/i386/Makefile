@@ -10,7 +10,7 @@ floppy.img: boot0.bin boot1.bin
 
 .PHONY: run
 run: floppy.img
-	qemu-system-i386 -fda $<
+	qemu-system-i386 -s -fda $<
 
 .PHONY: clean
 clean:
