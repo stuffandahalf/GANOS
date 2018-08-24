@@ -48,6 +48,12 @@ _start:
     mov si, boot_str        ; load string into source index
     call print              ; and print it
 
+    call check_a20          ; check if a20 is enabled
+    or ax, ax               ; and try to enable it
+    jnz load_boot1          ; using several methods
+    
+
+load_boot1:
 reset_disk:
     push ax
     mov ah, 0x00
@@ -80,6 +86,56 @@ load_sectors:
     mov si, drv_fail_str
     call print
     jmp halt
+
+; routine from wiki.osdev.org
+check_a20:
+    pushf
+    push ds
+    push es
+    push di
+    push si
+ 
+    cli
+ 
+    xor ax, ax ; ax = 0
+    mov es, ax
+ 
+    not ax ; ax = 0xFFFF
+    mov ds, ax
+ 
+    mov di, 0x0500
+    mov si, 0x0510
+ 
+    mov al, byte [es:di]
+    push ax
+ 
+    mov al, byte [ds:si]
+    push ax
+ 
+    mov byte [es:di], 0x00
+    mov byte [ds:si], 0xFF
+ 
+    cmp byte [es:di], 0xFF
+ 
+    pop ax
+    mov byte [ds:si], al
+ 
+    pop ax
+    mov byte [es:di], al
+ 
+    mov ax, 0
+    je .exit
+ 
+    mov ax, 1
+ 
+.exit:
+    pop si
+    pop di
+    pop es
+    pop ds
+    popf
+ 
+    ret
 
 ; prints the \0 terminated string located in si
 print:
