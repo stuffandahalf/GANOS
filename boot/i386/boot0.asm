@@ -34,37 +34,54 @@ hidden_sectors_before_fat_count:
 total_logical_sectors_3_31:
     dd 0
 
-string db `Ganix boot stage 0\r\n`, 0
+; variables
+boot_str db `Ganix boot stage 0\r\n`, 0
+
+drv_fail_str db `Failed to load second stage\r\n`, 0
+drv_reset_counter db 3
+
+a20_fail_str db `Failed to enable address line 20\r\n`, 0
 
 _start:
-    mov si, string
-    call print
+    mov [drive_num], dl     ; save loading drive number
 
-reset_fd:
+    mov si, boot_str        ; load string into source index
+    call print              ; and print it
+
+reset_disk:
+    push ax
     mov ah, 0x00
     int 13h
+    pop ax
 
 load_sectors:
-    mov ax, 0
-    mov es, ax
-    mov bx, 1000h
+    xor ax, ax              ; clear ax
+    mov es, ax              ; load es with 0000h
+    mov bx, 1000h           ; load bx with offset 1000h
 
-    mov ah, 2
-    mov al, 1
-    mov ch, 0
-    mov cl, 2
-    mov dh, 0
+    mov ah, 2               ; function 2
+    mov al, 1               ; number of sectors to read (1-128)
+    mov ch, 0               ; track/cylinder (0-1023)
+    mov cl, 2               ; starting sector (1-17)
+    mov dh, 0               ; head number (0-15)
+    mov dl, [drive_num]     ; restore drive number
     int 13h
+    
+    jc .retry
 
-    ;jmp 0x0000:0x1000
+    ;jmp 0000h:1000h;
     jmp [es:bx]
 
-
-halt:
-    nop
-    ;hlt
+.retry:
+    dec byte [drv_reset_counter] ; decrement reset timeout
+    jz .fail
+    jmp reset_disk
+.fail:
+    mov si, drv_fail_str
+    call print
     jmp halt
 
+; prints the \0 terminated string located in si
 print:
     push ax
     mov ah, 0Eh
@@ -78,7 +95,10 @@ print:
     pop ax
     ret
 
-    
+halt:
+    hlt
+    jmp halt
+
     times 509 - ($ - $$) db 0
     
 drive_num:
