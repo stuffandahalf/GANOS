@@ -34,11 +34,8 @@ hidden_sectors_before_fat_count:
 total_logical_sectors_3_31:
     dd 0
 
-; variables
-boot_str db `Ganix boot stage 0\r\n`, 0
 
-drv_fail_str db `Failed to load second stage\r\n`, 0
-drv_reset_counter db 3
+boot_str db `Ganix boot stage 0\r\n`, 0
 
 a20_fail_str db `Failed to enable address line 20\r\n`, 0
 
@@ -48,19 +45,21 @@ _start:
     mov si, boot_str        ; load string into source index
     call print              ; and print it
 
-    call check_a20          ; check if a20 is enabled
-    or ax, ax               ; and try to enable it
-    jnz load_boot1          ; using several methods
-    
+    call enable_a20
+    xor ax, ax
+    jz halt
+
+    call load_boot1
+    jmp [es:bx]
 
 load_boot1:
-reset_disk:
+.reset_disk:
     push ax
     mov ah, 0x00
     int 13h
     pop ax
 
-load_sectors:
+.load_sectors:
     xor ax, ax              ; clear ax
     mov es, ax              ; load es with 0000h
     mov bx, 1000h           ; load bx with offset 1000h
@@ -75,20 +74,25 @@ load_sectors:
     
     jc .retry
 
-    ;jmp 0000h:1000h;
-    jmp [es:bx]
+    ret
 
 .retry:
-    dec byte [drv_reset_counter] ; decrement reset timeout
+    dec byte [.drv_reset_counter] ; decrement reset timeout
     jz .fail
-    jmp reset_disk
+    jmp .reset_disk
+
 .fail:
-    mov si, drv_fail_str
+    mov si, .drv_fail_str
     call print
     jmp halt
 
+.drv_reset_counter: db 3
+.drv_fail_str: db `Failed to load stage 1 bootloader\r\n`
+
+enable_a20:
+
 ; routine from wiki.osdev.org
-check_a20:
+.check_a20:
     pushf
     push ds
     push es
@@ -127,7 +131,7 @@ check_a20:
     je .exit
  
     mov ax, 1
- 
+
 .exit:
     pop si
     pop di
@@ -152,7 +156,6 @@ print:
     ret
 
 halt:
-    hlt
     jmp halt
 
     times 509 - ($ - $$) db 0
