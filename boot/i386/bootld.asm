@@ -45,12 +45,30 @@ _start:
     mov si, boot_str        ; load string into source index
     call print              ; and print it
 
-    call enable_a20
-    or ax, ax
-    jz halt
+    call kb_wait
+    mov al, 0xD1
+    out 0x64, al
+    call kb_wait
+    mov al, 0xDF
+    out 0x60, al
+    call kb_wait
 
-    call load_boot1
-    jmp [es:bx]
+    call enable_a20
+    ;or ax, ax
+    cmp ax, 1
+    jne halt
+
+    mov si, boot_str
+    call print
+
+    ;call load_boot1
+    ;jmp [es:bx]
+
+kb_wait:
+    in al, 0x64
+    test al, 2
+    jnz kb_wait
+    ret
 
 load_boot1:
 .reset_disk:

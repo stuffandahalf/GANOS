@@ -89,111 +89,44 @@ load_boot1:
 .drv_fail_str: db `Failed to load stage 1 bootloader\r\n`
 
 enable_a20:
-    pushf
-    push ds
-    push es
-    push di
-    push si
-
-    cli
-
     call .check
-    ;jmp .fail
+    cmp ax, 1
+    je .exit
     
 .enable_bios:
     mov ax, 0x2401
     int 0x15
 
     call .check
+    cmp ax, 1
+    je .exit
     ;jmp .fail
 
 .enable_kb:
-    cli
-
-    %if 0
-    push word 0xAD
-    call .kb_out_64h
-    
-    push word 0xD0
-    call .kb_out_64h
-
-    call .kb_wait1
-    in al, 0x60
-    push ax
-
-    push word 0xD1
-    call .kb_out_64h
-
-    call .kb_wait2
-    pop ax
-    or al, 2
-    out 0x60, al
-
-    push word 0xAE
-    call .kb_out_64h
-
-    call .kb_wait_com
-    %endif
-    %if 0
-    call .kb_wait_com
-    mov al, 0xAD
-    out 0x64, al
-    
-    call .kb_wait_com
-    mov al, 0xD0
-    out 0x64, al
-
-    call .kb_wait_data
-    in al, 0x60
-    push ax
-
     call .kb_wait_com
     mov al, 0xD1
     out 0x64, al
-
-    call .kb_wait_com
-    pop ax
-    or al, 2
-    out 0x64, al
-
-    call .kb_wait_com
-    sti
-    %endif
-
-    call .kb_wait_com
-    mov al, 0xD1
-    out 0x64, al
-
     call .kb_wait_com
     mov al, 0xDF
     out 0x60, al
     call .kb_wait_com
 
     call .check
-    ;jmp .fail
+    cmp ax, 1
+    je .exit
 
 .enable_fast:
     in al, 0x92
     test al, 2
-    jnz .end
+    jnz .enable_end
     or al, 0x02
     and al, 0xFE
     out 0x92, al
 
-.end:
+.enable_end:
     call .check
-    jmp .fail
-
-.kb_out_64h:
-    push bp
-    mov bp, sp
-    call .kb_wait_com
-    mov ax, [bp+4]
-    out 0x64, al
-    pop bp
-    ret 0x01
-
-    call .check
+    cmp ax, 1
+    je .exit
     jmp .fail
 
 .kb_wait_com:
@@ -245,7 +178,6 @@ enable_a20:
     mov ax, 0
     je .check_exit
     mov ax, 1
-;    jne .exit
 
 .check_exit
     pop si
@@ -254,35 +186,17 @@ enable_a20:
     pop ds
     popf
     
-    or ax, 1
-    je .exit
-
     ret
     
-;    mov ax, 0
-;    je .exit
-; 
-;    mov ax, 1
-
 .fail:
-    sti
-    
     mov si, .fail_str
     call print
     jmp halt
 
 .exit:
-    sti
-    
     mov si, .success_str
     call print
 
-    pop si
-    pop di
-    pop es
-    pop ds
-    popf
- 
     ret
 
 .fail_str: db `Failed to enable address line 20 \r\n`, 0
