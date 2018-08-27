@@ -36,8 +36,9 @@ total_logical_sectors_3_31:
 
 
 boot_str db `Ganix boot stage 0\r\n`, 0
-
-a20_fail_str db `Failed to enable address line 20\r\n`, 0
+stage1_seg: equ 0000h
+stage1_offset: equ 1000h
+;a20_fail_str db `Failed to enable address line 20\r\n`, 0
 
 _start:
     mov [drive_num], dl     ; save loading drive number
@@ -46,26 +47,24 @@ _start:
     call print              ; and print it
 
     call enable_a20
-    xor ax, ax
-    jz halt
 
     call load_boot1
-    jmp [es:bx]
+    jmp stage1_seg:stage1_offset
 
 load_boot1:
 .reset_disk:
-    push ax
-    mov ah, 0x00
+    mov ah, 00h
     int 13h
-    pop ax
-
+    
 .load_sectors:
-    xor ax, ax              ; clear ax
-    mov es, ax              ; load es with 0000h
-    mov bx, 1000h           ; load bx with offset 1000h
+    mov ax, stage1_seg
+    mov es, ax
+    mov bx, stage1_offset
 
     mov ah, 2               ; function 2
-    mov al, 1               ; number of sectors to read (1-128)
+;    mov al, 1               ; number of sectors to read (1-128)
+    mov al, [reserved_logical_sector_count]
+    dec al
     mov ch, 0               ; track/cylinder (0-1023)
     mov cl, 2               ; starting sector (1-17)
     mov dh, 0               ; head number (0-15)
@@ -90,17 +89,133 @@ load_boot1:
 .drv_fail_str: db `Failed to load stage 1 bootloader\r\n`
 
 enable_a20:
-
-; routine from wiki.osdev.org
-.check_a20:
     pushf
     push ds
     push es
     push di
     push si
- 
+
     cli
- 
+
+    call .check
+    ;jmp .fail
+    
+.enable_bios:
+    mov ax, 0x2401
+    int 0x15
+
+    call .check
+    ;jmp .fail
+
+.enable_kb:
+    cli
+
+    %if 0
+    push word 0xAD
+    call .kb_out_64h
+    
+    push word 0xD0
+    call .kb_out_64h
+
+    call .kb_wait1
+    in al, 0x60
+    push ax
+
+    push word 0xD1
+    call .kb_out_64h
+
+    call .kb_wait2
+    pop ax
+    or al, 2
+    out 0x60, al
+
+    push word 0xAE
+    call .kb_out_64h
+
+    call .kb_wait_com
+    %endif
+    %if 0
+    call .kb_wait_com
+    mov al, 0xAD
+    out 0x64, al
+    
+    call .kb_wait_com
+    mov al, 0xD0
+    out 0x64, al
+
+    call .kb_wait_data
+    in al, 0x60
+    push ax
+
+    call .kb_wait_com
+    mov al, 0xD1
+    out 0x64, al
+
+    call .kb_wait_com
+    pop ax
+    or al, 2
+    out 0x64, al
+
+    call .kb_wait_com
+    sti
+    %endif
+
+    call .kb_wait_com
+    mov al, 0xD1
+    out 0x64, al
+
+    call .kb_wait_com
+    mov al, 0xDF
+    out 0x60, al
+    call .kb_wait_com
+
+    call .check
+    ;jmp .fail
+
+.enable_fast:
+    in al, 0x92
+    test al, 2
+    jnz .end
+    or al, 0x02
+    and al, 0xFE
+    out 0x92, al
+
+.end:
+    call .check
+    jmp .fail
+
+.kb_out_64h:
+    push bp
+    mov bp, sp
+    call .kb_wait_com
+    mov ax, [bp+4]
+    out 0x64, al
+    pop bp
+    ret 0x01
+
+    call .check
+    jmp .fail
+
+.kb_wait_com:
+    in al, 0x64
+    test al, 0x02
+    jnz .kb_wait_com
+    ret
+
+.kb_wait_data:
+    in al, 0x64
+    test al, 0x01
+    jnz .kb_wait_data
+    ret
+
+; routine from wiki.osdev.org
+.check:
+    pushf
+    push ds
+    push es
+    push di
+    push si
+
     xor ax, ax ; ax = 0
     mov es, ax
  
@@ -126,13 +241,42 @@ enable_a20:
  
     pop ax
     mov byte [es:di], al
- 
+    
     mov ax, 0
-    je .exit
- 
+    je .check_exit
     mov ax, 1
+;    jne .exit
+
+.check_exit
+    pop si
+    pop di
+    pop es
+    pop ds
+    popf
+    
+    or ax, 1
+    je .exit
+
+    ret
+    
+;    mov ax, 0
+;    je .exit
+; 
+;    mov ax, 1
+
+.fail:
+    sti
+    
+    mov si, .fail_str
+    call print
+    jmp halt
 
 .exit:
+    sti
+    
+    mov si, .success_str
+    call print
+
     pop si
     pop di
     pop es
@@ -140,6 +284,9 @@ enable_a20:
     popf
  
     ret
+
+.fail_str: db `Failed to enable address line 20 \r\n`, 0
+.success_str: db `Enabled address line 20\r\n`, 0
 
 ; prints the \0 terminated string located in si
 print:

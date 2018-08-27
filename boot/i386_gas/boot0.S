@@ -39,8 +39,6 @@ total_logical_sectors_3_31:
 .set stage1_offset, 0x1000
 
 boot_str: .asciz "Ganix boot stage 0\r\n"
-#drv_fail_str: .asciz "Failed to load stage 1 bootloader \r\n"
-#drv_reset_counter: .byte 3
 
 _start:
     movb %dl, drive_num
@@ -56,21 +54,8 @@ _start:
 
     call enable_a20
     
-/*    call a20_check
-    or %ax, %ax
-    jnz .cont
-    movw $boot_str, %si
-    call print
-    
-.cont:*/
-
     call load_boot1
     
-    /*movw $boot_str, %si
-    call print
-    
-    call halt*/
-
     ljmp $stage1_seg, $stage1_offset
 
 
@@ -84,6 +69,7 @@ reset_fd:
     #xor %ax, %ax
     #movw %ax, %es
     movw $stage1_seg, %ax
+    movw %ax, %es
     movw $stage1_offset, %bx
 
     movb $2, %ah    # function number
@@ -113,52 +99,6 @@ reset_fd:
 .Lload_fail_str: .asciz "Failed to load stage 1 bootloader\r\n"
 .Lload_reset_counter: .byte 3
 
-/*a20_check:
-    pushfw
-    pushw %ds
-    pushw %es
-    pushw %di
-    pushw %si
-    
-    xor %ax, %ax
-    movw %ax, %es
-    
-    notw %ax
-    movw %ax, %ds
-    #xor %ax, %ax
-    
-    movw $0x0500, %di
-    movw $0x0510, %si
-    
-    movb %es:(%di), %al
-    pushw %ax
-    
-    movb %ds:(%si), %al
-    pushw %ax
-    
-    movb $0x00, %es:(%di)
-    movb $0xFF, %ds:(%si)
-    
-    cmpb $0xFF, %es:(%di)
-    
-    popw %ax
-    movb %al, %ds:(%si)
-    
-    popw %ax
-    movb %al, %es:(%di)
-    
-    mov $0x00, %ax
-    je .La20_exit
-    mov $0x01, %ax
-    
-.La20_exit:
-    popw %si
-    popw %di
-    popw %es
-    popw %ds
-    popf
-    ret
-*/
 enable_a20:
     pushfw
     pushw %ds
@@ -169,7 +109,7 @@ enable_a20:
     cli
 
     call .La20_check
-    jmp .La20_fail
+    #jmp .La20_fail
     
 .La20_enable_keyboard:
     pushw $0xAD
@@ -198,11 +138,14 @@ enable_a20:
     or $0x02, %al
     out %al, $0x92
 
+    call .La20_check
+    call .La20_fail
+
 .La20_out_64h:
     pushw %bp
     movw %sp, %bp
     call .La20_kb_wait2
-    movw -4(%bp), %ax
+    movw 4(%bp), %ax
     out %al, $0x64
     popw %bp
     ret $0x1
@@ -220,6 +163,12 @@ enable_a20:
     ret
 
 .La20_check:
+    pushfw
+    pushw %ds
+    pushw %es
+    pushw %di
+    pushw %si
+
     xorw %ax, %ax
     movw %ax, %es
     
@@ -248,6 +197,13 @@ enable_a20:
     movb %al, %es:(%di)
 
     jne .La20_exit
+
+    popw %si
+    popw %di
+    popw %es
+    popw %ds
+    popfw
+
     ret
 
 .La20_fail:

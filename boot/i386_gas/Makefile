@@ -23,7 +23,7 @@ clean:
 
 .PHONY: run
 run: boot0.bin
-	qemu-system-i386 -fda $<
+	qemu-system-i386 -s -fda $<
 
 .PHONY: test
 test: floppy.img
