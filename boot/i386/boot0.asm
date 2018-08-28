@@ -179,7 +179,7 @@ enable_a20:
     je .check_exit
     mov ax, 1
 
-.check_exit
+.check_exit:
     pop si
     pop di
     pop es

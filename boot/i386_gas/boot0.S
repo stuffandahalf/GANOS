@@ -100,66 +100,41 @@ reset_fd:
 .Lload_reset_counter: .byte 3
 
 enable_a20:
-    pushfw
-    pushw %ds
-    pushw %es
-    pushw %di
-    pushw %si
-
-    cli
-
     call .La20_check
-    #jmp .La20_fail
+    cmp $1, %ax
+    je .La20_exit
     
 .La20_enable_keyboard:
-    pushw $0xAD
-    call .La20_out_64h
-
-    pushw $0xD0
-    call .La20_out_64h
-
-    call .La20_kb_wait1
-    in $0x60, %al
-    pushw %ax
-    
-    pushw $0xD1
-    call .La20_out_64h
-    
-    pushw $0x02
-    call .La20_out_64h
-
-    call .La20_kb_wait2
+    call .La20_kb_wait_com
+    movb $0xD1, %al
+    outb %al, $0x64
+    call .La20_kb_wait_com
+    movb $0xDF, %al
+    outb %al, $0x60
+    call .La20_kb_wait_com
 
     call .La20_check
-    jmp .La20_fail
+    cmp $1, %ax
+    je .La20_exit
 
 .La20_enable_fast:
     in $0x92, %al
-    or $0x02, %al
-    out %al, $0x92
+    testb $2, %al
+    jnz .La20_enable_end
+    orb $0x02, %al
+    andb $0xFE, %al
+    outb %al, $0x92
 
+.La20_enable_end:
     call .La20_check
-    call .La20_fail
+    cmp $1, %ax
+    je .La20_exit
+    jmp .La20_fail
 
-.La20_out_64h:
-    pushw %bp
-    movw %sp, %bp
-    call .La20_kb_wait2
-    movw 4(%bp), %ax
-    out %al, $0x64
-    popw %bp
-    ret $0x1
-
-.La20_kb_wait2:
+.La20_kb_wait_com:
     in $0x64, %al
     test $2, %al
-    jnz .La20_kb_wait2
-    ret
-
-.La20_kb_wait1:
-    in $0x64, %al
-    test $1, %al
-    jnz .La20_kb_wait1
+    jnz .La20_kb_wait_com
     ret
 
 .La20_check:
@@ -196,8 +171,11 @@ enable_a20:
     popw %ax
     movb %al, %es:(%di)
 
-    jne .La20_exit
+    movw $0, %ax
+    je .La20_check_exit
+    movw $1, %ax
 
+.La20_check_exit:
     popw %si
     popw %di
     popw %es
@@ -207,14 +185,11 @@ enable_a20:
     ret
 
 .La20_fail:
-    sti
     movw $.La20_fail_str, %si
     call print
     jmp halt
-    #ret
 
 .La20_exit:
-    sti
     movw $.La20_success_str, %si
     call print
 
