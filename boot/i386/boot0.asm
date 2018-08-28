@@ -1,6 +1,6 @@
     [BITS 16]
     org 0x7c00
-    
+
 jump:
     jmp _start
     nop
@@ -55,7 +55,7 @@ load_boot1:
 .reset_disk:
     mov ah, 00h
     int 13h
-    
+
 .load_sectors:
     mov ax, stage1_seg
     mov es, ax
@@ -70,7 +70,7 @@ load_boot1:
     mov dh, 0               ; head number (0-15)
     mov dl, [drive_num]     ; restore drive number
     int 13h
-    
+
     jc .retry
 
     ret
@@ -92,7 +92,7 @@ enable_a20:
     call .check
     cmp ax, 1
     je .exit
-    
+
 .enable_bios:
     mov ax, 0x2401
     int 0x15
@@ -100,7 +100,6 @@ enable_a20:
     call .check
     cmp ax, 1
     je .exit
-    ;jmp .fail
 
 .enable_kb:
     call .kb_wait_com
@@ -151,30 +150,30 @@ enable_a20:
 
     xor ax, ax ; ax = 0
     mov es, ax
- 
+
     not ax ; ax = 0xFFFF
     mov ds, ax
- 
+
     mov di, 0x0500
     mov si, 0x0510
- 
+
     mov al, byte [es:di]
     push ax
- 
+
     mov al, byte [ds:si]
     push ax
- 
+
     mov byte [es:di], 0x00
     mov byte [ds:si], 0xFF
- 
+
     cmp byte [es:di], 0xFF
- 
+
     pop ax
     mov byte [ds:si], al
- 
+
     pop ax
     mov byte [es:di], al
-    
+
     mov ax, 0
     je .check_exit
     mov ax, 1
@@ -185,9 +184,9 @@ enable_a20:
     pop es
     pop ds
     popf
-    
+
     ret
-    
+
 .fail:
     mov si, .fail_str
     call print
@@ -220,10 +219,10 @@ halt:
     jmp halt
 
     times 509 - ($ - $$) db 0
-    
+
 drive_num:
     db 0
-    
+
 boot_sig:
     db 0x55
     db 0xAA
