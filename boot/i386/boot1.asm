@@ -21,8 +21,6 @@ _start:
     mov si, boot_str
     call print
 
-
-
     cli
 
     mov eax, cr0

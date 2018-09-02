@@ -205,6 +205,19 @@ gdt_end:
 
     times 446 - ($ - $$) db 0
 
+STRUC Partition
+.status resb 1
+.head resb 1
+.sector resb 1
+.cylinder resb 1
+.type resb 1
+.last_head resb 1
+.last_sector resb 1
+.last_cylinder resb 1
+.lba_address resd 1
+.size resd 1
+ENDSTRUC
+
 part_tbl:
 .part1: times 16 db 0
 .part2: times 16 db 0
