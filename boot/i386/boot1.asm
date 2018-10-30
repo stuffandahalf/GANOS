@@ -1,5 +1,6 @@
     [BITS 16]
-    org 0x1000
+    ;org 0x1000
+    global _start
 
 STRUC MultibootHeader
     .magic: resd 1
@@ -17,15 +18,26 @@ STRUC MultibootHeader
     .size:
 ENDSTRUC
 
+    global boot_str
+
 _start:
     mov si, boot_str
     call print
+
+    ;[extern tst]
+    ;call tst
+
+    ;mov si, boot_str
+    ;call print
 
     cli
 
     mov eax, cr0
     or eax, 1
     mov cr0, eax
+
+    ;[extern p_main]
+    ;call p_main
 
     hlt
 
@@ -48,4 +60,4 @@ print:
 halt:
     jmp halt
 
-    times 8704 - ($-$$) db 0
+    ;times 8704 - ($-$$) db 0

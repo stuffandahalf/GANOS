@@ -1,6 +1,7 @@
 AS = nasm
 CC = ~/bin/cross/bin/i686-elf-gcc
-CFLAGS = -O0 -g -ffreestanding -m32 -c
+#CFLAGS = -O0 -g -ffreestanding -m32 -c
+CFLAGS = -m32 -c -g
 LD = ld
 LFLAGS = -m elf_i386 -Ttext 0x1000 --oformat binary
 
@@ -18,8 +19,10 @@ floppy.img: boot0.bin boot1.bin
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-#boot1.bin: boot1.o boot_c.o
-#	$(LD) $(LFLAGS) -o $@ boot1.o boot_c.o
+boot1.bin: boot1.o #boot_c.o
+	$(LD) $(LFLAGS) -o $@ boot1.o #boot_c.o
+#boot1.bin: boot_c.o boot_a.o
+#	$(LD) $(LFLAGS) -o $@ boot_c.o boot_a.o
 
 .PHONY: run
 run: floppy.img
