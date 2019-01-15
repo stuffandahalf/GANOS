@@ -18,6 +18,10 @@ struct mbr_partition_entry {
     uint32_t sector_count;
 } __attribute__((packed));
 
+struct gpt_partition_entry {
+    
+} __attribute__((packed));
+
 void configure(int argc, char **argv);
 size_t fsize(FILE *fptr);
 
