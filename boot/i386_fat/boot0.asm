@@ -1,10 +1,10 @@
     [BITS 16]
     org 0x7C00
 
-%define DEBUG
+;%define DEBUG
 
 start:
-    mov [data.drive_num], dl ;Preserve drive number of loading drive
+    mov [data.drive_num], dl    ;Preserve drive number of loading drive
     
     mov al, [part_tbl.part1 + part_entry.type]
 %ifndef DEBUG
@@ -12,7 +12,7 @@ start:
     jnz halt
 %endif
 
-    mov si, data.test_str
+    mov si, strs.test
     call print
     
     
@@ -31,13 +31,19 @@ print:
 .end:
     pop ax
     ret
+
+load_sector:
+    ret
     
 halt:
     jmp halt
 
 data:    
 .drive_num: db 0
-.test_str: db 'Hello World', 0
+
+strs:
+.test: db 'Hello World', 0
+.validation: 
 
     times 446 - ($ - $$) db 0
 
