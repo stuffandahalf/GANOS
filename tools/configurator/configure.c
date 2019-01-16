@@ -19,7 +19,12 @@ struct mbr_partition_entry {
 } __attribute__((packed));
 
 struct gpt_partition_entry {
-    
+    uint8_t partition_type_guid[16];
+    uint8_t unique_partition_guid[16];
+    uint32_t first_lba; // little endian
+    uint32_t last_lba; // inclusive, usually odd, little endian
+    uint32_t attribute_flags;
+    uint16_t partition_name[36];
 } __attribute__((packed));
 
 void configure(int argc, char **argv);
@@ -65,7 +70,19 @@ int main(int argc, char **argv) {
     };
     fwrite(&block_part, sizeof(struct mbr_partition_entry), 1, device.fptr);
 
-    // 
+    
+    /*// update gpt header
+    fseek(device.fptr, device.sector_size, SEEK_SET);
+    
+    // Add gpt entry for boot partition
+    struct gpt_partition_entry efi_part = {
+        .partition_type_guid = { 0xC1, 0x2A, 0x73, 0x28, 0xF8, 0x1F, 0x11, 0xD2, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B },
+        .unique_partition_guid = { 0 },
+        .first_lba = 2,
+        .last_lba = 5,
+        .attribute_flags = 1,
+        partition_name = "EFI System Partition"
+    }*/
 
     fclose(device.fptr);
     return 0;
