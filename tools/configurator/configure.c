@@ -102,15 +102,17 @@ int main(int argc, char **argv) {
 
     // Create gpt partition array
     struct gpt_partition_entry part_array[PART_ARRAY_SLOTS] = { 0 };
-    /*struct gpt_partition_entry efi_part = {
+    struct gpt_partition_entry efi_part = {
         .partition_type_guid = { 0xC1, 0x2A, 0x73, 0x28, 0xF8, 0x1F, 0x11, 0xD2, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B },
         .unique_partition_guid = { 0 },
-        .first_lba = 2,
-        .last_lba = 5,
+        .first_lba = PART_DATA_LBA,
+        .last_lba = PART_DATA_LBA + 3,
         .attribute_flags = 1,
-        .partition_name = "EFI System Partition"
+        //.partition_name = "EFI System Partition"
+        .partition_name = { 'H', 'E', 'L', 'L', 'O' }
     };
-    part_array[0] = efi_part;*/
+    efi_part.partition_name[35] = '?';
+    part_array[0] = efi_part;
 
     struct gpt_header primary_gpt_hdr = {
         .signature = { 'E', 'F', 'I', ' ', 'P', 'A', 'R', 'T' },
@@ -134,7 +136,7 @@ int main(int argc, char **argv) {
     struct gpt_header backup_gpt_hdr = primary_gpt_hdr;
     backup_gpt_hdr.current_lba = primary_gpt_hdr.backup_lba;
     backup_gpt_hdr.backup_lba = primary_gpt_hdr.current_lba;
-    backup_gpt_hdr.part_array_lba = LBA_COUNT - 34;
+    backup_gpt_hdr.part_array_lba = LBA_COUNT - PART_DATA_LBA;
     backup_gpt_hdr.crc32_zlib = 0;
     backup_gpt_hdr.crc32_zlib = crc32(0L, (void *)&backup_gpt_hdr, sizeof(struct gpt_header)),
     
