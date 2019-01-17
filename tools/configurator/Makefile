@@ -8,7 +8,7 @@ OBJS=configure.o
 	$(CC) $(CFLAGS) $<
 
 configure: $(OBJS)
-	$(CC) -o $@ $(OBJS)
+	$(CC) -o $@ $(OBJS) -lz
 
 .PHONY: clean
 clean:

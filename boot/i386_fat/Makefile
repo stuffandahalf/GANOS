@@ -4,10 +4,10 @@ SECTOR_SIZE=512
 %.bin: %.asm
 	$(AS) -f bin -o $@ $<
 
-boot.img: boot0.bin gpt_header.bin ../../tools/configurator/configure
+boot.img: boot0.bin ../../tools/configurator/configure
 	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=1024
 	dd if=boot0.bin of=$@ seek=0 count=1 conv=notrunc
-	dd if=gpt_header.bin of=$@ bs=$(SECTOR_SIZE) seek=1 conv=notrunc
+	#dd if=gpt_header.bin of=$@ bs=$(SECTOR_SIZE) seek=1 conv=notrunc
 	../../tools/configurator/configure -d $@ -s $(SECTOR_SIZE)
 
 ../../tools/configurator/configure:
