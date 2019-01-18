@@ -50,9 +50,9 @@ struct gpt_header {
 struct gpt_partition_entry {
     uint8_t partition_type_guid[16];
     uint8_t unique_partition_guid[16];
-    uint32_t first_lba; // little endian
-    uint32_t last_lba; // inclusive, usually odd, little endian
-    uint32_t attribute_flags;
+    uint64_t first_lba; // little endian
+    uint64_t last_lba; // inclusive, usually odd, little endian
+    uint64_t attribute_flags;
     uint16_t partition_name[36];
 } __attribute__((packed));
 
@@ -65,7 +65,8 @@ struct {
 } configuration = { NULL, 0 };
 
 int main(int argc, char **argv) {    
-    printf("%ld\n", LBA_COUNT);
+    printf("available blocks %ld\n", LBA_COUNT);
+    printf("gpt partition entry size %ld bytes\n", sizeof(struct gpt_partition_entry));
     configure(argc, argv);
     
     if (configuration.dev_name == NULL) {
@@ -86,7 +87,7 @@ int main(int argc, char **argv) {
     }
     device.size = fsize(device.fptr);
 
-    printf("%ld\n", device.size);
+    printf("partition array size %ld\n", sizeof(struct gpt_partition_entry) * PART_ARRAY_SLOTS / 512);
     
     // Add protective mbr partition entry
     fseek(device.fptr, MBR_SIZE - sizeof(struct mbr_partition_entry) * 4 - 2, SEEK_SET);
@@ -112,6 +113,7 @@ int main(int argc, char **argv) {
         .partition_name = { 'H', 'E', 'L', 'L', 'O' }
     };
     efi_part.partition_name[35] = '?';
+    printf("partition starting lba %u\n", efi_part.first_lba);
     part_array[0] = efi_part;
 
     struct gpt_header primary_gpt_hdr = {
@@ -147,6 +149,7 @@ int main(int argc, char **argv) {
     fseek(device.fptr, device.sector_size * primary_gpt_hdr.part_array_lba, SEEK_SET);
     fwrite(part_array, sizeof(struct gpt_partition_entry), PART_ARRAY_SLOTS, device.fptr);
     
+    printf("backup part array lba %u\n", backup_gpt_hdr.part_array_lba);
     // write backup gpt header and partition table
     fseek(device.fptr, device.sector_size * backup_gpt_hdr.part_array_lba, SEEK_SET);
     fwrite(part_array, sizeof(struct gpt_partition_entry), PART_ARRAY_SLOTS, device.fptr);
