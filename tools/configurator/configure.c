@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <unistd.h>
+#include <wchar.h>
 #include <zlib.h>
 
 #define die(fmt, ...) { \
@@ -18,6 +19,8 @@
 #define SECTORS_PER_HEAD 16
 
 #define PART_ARRAY_SLOTS 128
+
+#define EFI_SYSTEM_PART_LBA_SIZE (32 * 1024 * 1024)
 
 const uint64_t LBA_COUNT = CYLINDERS * HEADS * SECTORS_PER_HEAD;
 
@@ -104,16 +107,16 @@ int main(int argc, char **argv) {
     // Create gpt partition array
     struct gpt_partition_entry part_array[PART_ARRAY_SLOTS] = { 0 };
     struct gpt_partition_entry efi_part = {
-        .partition_type_guid = { 0xC1, 0x2A, 0x73, 0x28, 0xF8, 0x1F, 0x11, 0xD2, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B },
+        //.partition_type_guid = { 0xC1, 0x2A, 0x73, 0x28, 0xF8, 0x1F, 0x11, 0xD2, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B },
+        .partition_type_guid = { 0 },
         .unique_partition_guid = { 0 },
         .first_lba = PART_DATA_LBA,
         .last_lba = PART_DATA_LBA + 3,
         .attribute_flags = 1,
-        //.partition_name = "EFI System Partition"
-        .partition_name = { 'H', 'E', 'L', 'L', 'O' }
+        .partition_name = { 'E', 'F', 'I', ' ', 'S', 'y', 's', 't', 'e', 'm', ' ', 'P', 'a', 'r', 't', 'i', 't', 'i', 'o', 'n' }
+        //.partition_name = L"EFI System Partition" // Doesn't work because wchar_t is defined as an int
     };
-    efi_part.partition_name[35] = '?';
-    printf("partition starting lba %u\n", efi_part.first_lba);
+    printf("partition starting lba %lu\n", efi_part.first_lba);
     part_array[0] = efi_part;
 
     struct gpt_header primary_gpt_hdr = {
@@ -127,7 +130,7 @@ int main(int argc, char **argv) {
         .first_usable_lba = PART_DATA_LBA,
         .last_usable_lba = LBA_COUNT - PART_DATA_LBA,
         .disk_guid = { 0 },
-        .part_array_lba = 3,
+        .part_array_lba = 2,
         .part_entry_count = PART_ARRAY_SLOTS,//1,
         .part_entry_size = sizeof(struct gpt_partition_entry),
         .crc32_zlib_part_array = crc32(0L, (void *)&part_array, PART_ARRAY_SLOTS * sizeof(struct gpt_partition_entry))
@@ -149,7 +152,7 @@ int main(int argc, char **argv) {
     fseek(device.fptr, device.sector_size * primary_gpt_hdr.part_array_lba, SEEK_SET);
     fwrite(part_array, sizeof(struct gpt_partition_entry), PART_ARRAY_SLOTS, device.fptr);
     
-    printf("backup part array lba %u\n", backup_gpt_hdr.part_array_lba);
+    printf("backup part array lba %lu\n", backup_gpt_hdr.part_array_lba);
     // write backup gpt header and partition table
     fseek(device.fptr, device.sector_size * backup_gpt_hdr.part_array_lba, SEEK_SET);
     fwrite(part_array, sizeof(struct gpt_partition_entry), PART_ARRAY_SLOTS, device.fptr);

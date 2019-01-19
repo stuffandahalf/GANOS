@@ -1,17 +1,15 @@
     [BITS 16]
     org 0x7C00
 
-;%define DEBUG
-
-start:
+_start:
     mov [data.drive_num], dl    ;Preserve drive number of loading drive
     
+    ; Verify that this is a protective mbr
     mov al, [part_tbl.part1 + part_entry.type]
-%ifndef DEBUG
     cmp al, 0xEE
     jnz halt
-%endif
 
+    ; print test string
     mov si, strs.test
     call print
     
@@ -19,6 +17,8 @@ start:
     
     jmp halt
 
+; print a '\0' terminated string
+; parameters: si = string address
 print:
     push ax
     mov ah, 0x0E
