@@ -136,7 +136,7 @@ lba_to_chs:
     
     jc halt
     
-.format:
+.reposition:
     
     
     ret
@@ -144,7 +144,7 @@ lba_to_chs:
 ; Enter an infinite loop
 ; to halt the machine
 halt:
-    mov si, strs.fail
+    mov si, strs.halted
     call print
 .loop:
     jmp .loop
@@ -157,9 +157,9 @@ data:
 .efi_part_sig_len: equ 8
 
 strs:
-.test: db 'Hello World', 0
+.test: db 'Hello World', 0x0D, 0x0A, 0
 .welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
-.fail: db 'Halted', 0
+.halted: db 'Halted', 0
 
     times 446 - ($ - $$) db 0
 
