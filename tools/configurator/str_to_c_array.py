@@ -9,7 +9,6 @@ def str_to_c_array(s):
     for c in s:
         if not first:
             print(', ', end='')
-            #first = not first
         print('\'' + c + '\'', end='')
         first = False
     print(' }')

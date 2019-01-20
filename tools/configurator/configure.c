@@ -106,12 +106,11 @@ int main(int argc, char **argv) {
 
     // Create gpt partition array
     struct gpt_partition_entry part_array[PART_ARRAY_SLOTS] = { 0 };
-    struct gpt_partition_entry efi_part = {
-        //.partition_type_guid = { 0xC1, 0x2A, 0x73, 0x28, 0xF8, 0x1F, 0x11, 0xD2, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B },
-        .partition_type_guid = { 0 },
+    struct gpt_partition_entry efi_part = {\
+        .partition_type_guid = {0x28, 0x73, 0x2A, 0xC1, /* - */ 0x1F, 0xF8, /* - */ 0xD2, 0x11, /* - */ 0xBA, 0x4B, /* - */ 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B },
         .unique_partition_guid = { 0 },
         .first_lba = PART_DATA_LBA,
-        .last_lba = PART_DATA_LBA + 3,
+        .last_lba = PART_DATA_LBA + 4,
         .attribute_flags = 1,
         .partition_name = { 'E', 'F', 'I', ' ', 'S', 'y', 's', 't', 'e', 'm', ' ', 'P', 'a', 'r', 't', 'i', 't', 'i', 'o', 'n' }
         //.partition_name = L"EFI System Partition" // Doesn't work because wchar_t is defined as an int
