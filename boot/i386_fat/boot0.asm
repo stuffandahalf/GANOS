@@ -19,15 +19,6 @@ _start:
     mov si, strs.welcome
     call print
 
-.check_13h_extensions:
-    mov ah, 0x41
-    mov dl, [data.drive_num]
-    mov bx, 0x55AA
-    int 0x13
-    jc halt
-    and cx, 1
-    jz halt
-
 .verify_mbr:
     ; Verify that this is a protective mbr
     mov al, [part_tbl.part1 + part_entry.type]
@@ -74,33 +65,47 @@ print:
     pop ax
     ret
 
+; Algorithm from http://www.osdever.net/tutorials/view/lba-to-chs
 ; Convert the lba stored at [si] to chs
 ; for use with int 13h
 ; parameters:
 ; al = sector count
 ; dl = drive num
-; [es:si] = 8 byte lba
+; [ds:si] = 8 byte lba
 load_sectors_lba:
-.retrieve_drive_data:
+.check_lba_range:
     push ax
-    push dx
-    push es
+    lodsw
+    cmp ax, 0
+    jne halt
+    lodsw
+    cmp ax, .max_lba
+    jge halt
+
+.retrieve_drive_data:
+    push ax             ; save sector count
+    push dx             ; save drive number
     mov ah, 0x08
     xor di, di
     mov es, di
     int 0x13
 
     jc halt
-    pop es
+    ;pop dx
+    pop ax
 
-.get_sector:
-    mov ax, [es:si]
-    mov dx, cx
-    and dx, 0x3F    ; isolate the sectors per track
+.convert:
+    xor dx, dx
+    mov bx, cx
+    and bx, 0xCF
+    div bx
+    inc dx
+    push dx     ; save sectors
 
-%ifdef DEBUG
-    ret
-%endif
+    xor dx, dx
+    mov bx
+
+.max_lba: equ 0xFF0000
 
 ; Load the given sectors
 ; retrying 3 times on failure
@@ -172,7 +177,8 @@ halt:
 
 data:
 .drive_num: db 0
-.sectors_per_track: db 0
+.heads: db 0
+.total_cylinders_and_spt: dw 0  ; spt = sectors per track
 .gpt_array_lba: db 8
 .efi_part_sig: db 'EFI PART'
 .efi_part_sig_len: equ 8
