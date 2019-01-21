@@ -1,6 +1,8 @@
     [BITS 16]
     org 0x7C00
 
+;%define DEBUG
+
 ;target_segment: equ 0x1000
 
 stage2_segment: equ 0x1000
@@ -13,10 +15,20 @@ gpt_hdr:
 
 _start:
     mov [data.drive_num], dl    ;Preserve drive number of loading drive
-    
+
     mov si, strs.welcome
     call print
 
+.check_13h_extensions:
+    mov ah, 0x41
+    mov dl, [data.drive_num]
+    mov bx, 0x55AA
+    int 0x13
+    jc halt
+    and cx, 1
+    jz halt
+
+.verify_mbr:
     ; Verify that this is a protective mbr
     mov al, [part_tbl.part1 + part_entry.type]
     cmp al, 0xEE
@@ -30,19 +42,21 @@ _start:
     mov dh, 0                   ; head 0
     mov dl, [data.drive_num]    ; restore the original drive number
     mov bx, gpt_hdr.offset      ; then move the offset to bx
-    call load_sectors
+    call load_sectors_chs
 
 .verify_gpt:
-    call validate_gpt_hdr    
+    call validate_gpt_hdr
 
 .load_part_array:
-    
+    mov si, gpt_hdr.offset + gpt_hdr.part_array_lba_offset
+    call load_sectors_lba
 
 .find_efi_part:
-    
 
+%ifdef DEBUG
     mov si, strs.test
     call print
+%endif
     jmp halt
 
 ; Print a '\0' terminated string
@@ -59,11 +73,39 @@ print:
 .end:
     pop ax
     ret
-    
+
+; Convert the lba stored at [si] to chs
+; for use with int 13h
+; parameters:
+; al = sector count
+; dl = drive num
+; [es:si] = 8 byte lba
+load_sectors_lba:
+.retrieve_drive_data:
+    push ax
+    push dx
+    push es
+    mov ah, 0x08
+    xor di, di
+    mov es, di
+    int 0x13
+
+    jc halt
+    pop es
+
+.get_sector:
+    mov ax, [es:si]
+    mov dx, cx
+    and dx, 0x3F    ; isolate the sectors per track
+
+%ifdef DEBUG
+    ret
+%endif
+
 ; Load the given sectors
 ; retrying 3 times on failure
 ; parameters: same as int 13h
-load_sectors:
+load_sectors_chs:
 .init:
     mov byte [.retry_counter], 3
     mov [.cylinder_and_sector_address], cx
@@ -75,14 +117,19 @@ load_sectors:
     mov ah, .read_function
     mov cx, [.cylinder_and_sector_address]
     int .disk_interrupt
-    
+
     jc .retry
-    jmp .exit
-    
+
+.exit:
+    ret
+
 .retry:
     dec byte [.retry_counter]
-    jz .fail
-    jmp .reset_disk
+    jnz .reset_disk             ; try again if this wasnt the last iteration
+
+.fail:
+    mov si, .fail_message
+    call print
     jmp halt
 
 .disk_interrupt: equ 0x13
@@ -90,57 +137,31 @@ load_sectors:
 .read_function: equ 0x02
 .retry_counter: db 0
 .cylinder_and_sector_address: dw 0
-.fail_message: db 'Failed to load sectors', 0
+.fail_message: db 'Failed to load sectors', 0x0D, 0x0A, 0
 
-.fail:
-    mov si, .fail_message
-    call print
-    jmp halt
 
-.exit:
-    ret
-    
+
 ; validate that loaded sector is a gpt header
 validate_gpt_hdr:
     mov bl, data.efi_part_sig_len
     mov si, data.efi_part_sig
     mov di, gpt_hdr.offset
-    
+
 .loop:
     lodsb   ; load al with next character from required header
     cmp [di], al
     jne .fail
     inc di  ; go to next character in loaded header
-    
+
     dec bl
-    jz .success
-    jmp .loop
-    
-.fail:
-    jmp halt
+    jnz .loop
 
 .success:
     ret
-    
-; Convert the lba stored at [si] to chs
-; for use with int 13h
-; parameters: dl = drive num
-; [es:si] = 8 byte lba
-lba_to_chs:
-.retrieve_drive_data:
-    push dx
-    mov ah, 0x08
-    xor di, di
-    mov es, di
-    int 0x13
-    
-    jc halt
-    
-.reposition:
-    
-    
-    ret
-    
+
+.fail:
+    jmp halt
+
 ; Enter an infinite loop
 ; to halt the machine
 halt:
@@ -149,7 +170,7 @@ halt:
 .loop:
     jmp .loop
 
-data:    
+data:
 .drive_num: db 0
 .sectors_per_track: db 0
 .gpt_array_lba: db 8
@@ -157,7 +178,9 @@ data:
 .efi_part_sig_len: equ 8
 
 strs:
+%ifdef DEBUG
 .test: db 'Hello World', 0x0D, 0x0A, 0
+%endif
 .welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
 .halted: db 'Halted', 0
 
