@@ -5,6 +5,27 @@
 
 ;target_segment: equ 0x1000
 
+%macro LOCATE 0
+    push si
+    mov si, strs.locate
+    call print
+    pop si
+%endmacro
+
+%macro TST 2
+    push si
+    cmp %1, %2
+    jne %%notequal
+    mov si, strs.equal
+    call print
+    jmp %%end
+%%notequal:
+    mov si, strs.nequal
+    call print
+%%end:
+    pop si
+%endmacro
+
 stage2_segment: equ 0x1000
 stage2_offset: equ 0x0000
 
@@ -74,13 +95,13 @@ print:
 ; al = sector count
 ; dl = drive num
 ; [ds:si] = 8 byte lba
+; [ds:di] = buffer
 load_sectors_lba:
 .check_lba_range:
     push ax     ; save sector count
-    ;push si
-    std
-    mov cx, 3
-    add si, 6
+    push si
+    add si, 2
+    mov cx, 3   ; number of words to check
 .loop:
     lodsw
     cmp ax, 0
@@ -88,19 +109,13 @@ load_sectors_lba:
     dec cx
     jnz .loop
 
-    ;pop si
-
-    lodsw
-    cmp ax, .max_lba
-    jae halt
-
-    cld
-    ;pop ax
-    ;ret
+    pop si
+    lodsw       ; ax now contains the 16-bit lba
+    ;TST ax, 2
 
 .retrieve_drive_data:
-    ;push ax             ; save sector count
     push dx             ; save drive number
+    push ax             ; save lba
     mov ah, 0x08
     xor di, di
     mov es, di
@@ -108,36 +123,54 @@ load_sectors_lba:
 
     jc halt
     ;pop dx
-    ;pop ax
+    pop ax              ; restore lba
 
+    ;ret
+
+%if 1
 .convert:
+    ;TST ax, 2
+    push dx         ; preserve number of heads
+
     xor dx, dx
-    mov bx, cx
-    and bx, 0xCF
+    mov bx, cx      ; load sectors per track
+    and bx, 0x3F    ; isolate sectors per track
     div bx
     inc dx
-    push dx     ; save sector
+    ;TST dx, 3       ; verify that dx says 3 sectors
+    pop bx          ; remove number of heads briefly
+    push dx         ; save sector
+    mov dx, bx      ; move number of heads back to dx
 
-    xor dx, dx  ; clear dx
-    xor bx, bx  ; clear bx
-    mov bl, dh  ; move number of heads to bl
-    div bx      ; ax/bx -> ax, dx
+    xor bx, bx
+    mov bl, dl      ; move number of heads into bx
+    xor dx, dx      ; clear dx
+    inc bl
+    div bx
     ; ax = cylinder
     ; dx = head
+    ; top of stack = sector
 
-    mov cx, ax
+    mov ch, al
+    mov cl, ah
+    shl cl, 6
     pop ax
-    and al, 0x3F
-    or cl, al
-    mov dh, dl
-    
+    or cl, al      ; cx = cylinder + sector
+   
+    ;TST al, 3
+ 
+    mov dh, dl      ; dh = head
     pop ax
-    mov dl, al
-    pop ax
+    mov dl, al      ; dl = drive number
+
+    pop ax          ; al = number of sectors to read
+   
+    TST dh, 0
+    TST ch, 0
+    TST cl, 0x03
+ 
     ret
-
-;.max_lba: equ 0xFF0000
-.max_lba: equ 0x000000FF
+%endif
 
 ; Load the given sectors
 ; retrying 3 times on failure
@@ -220,6 +253,8 @@ strs:
 %ifdef DEBUG
 .test: db 'Hello World', 0x0D, 0x0A, 0
 .locate: db 'Here?', 0x0D, 0x0A, 0
+.equal: db 'register is equal', 0x0D, 0x0A, 0
+.nequal: db 'register is not equal', 0x0D, 0x0A, 0
 %endif
 .welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
 .halted: db 'Halted', 0
