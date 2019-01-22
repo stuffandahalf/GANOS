@@ -1,7 +1,7 @@
     [BITS 16]
     org 0x7C00
 
-;%define DEBUG
+%define DEBUG
 
 ;target_segment: equ 0x1000
 
@@ -40,6 +40,8 @@ _start:
 
 .load_part_array:
     mov si, gpt_hdr.offset + gpt_hdr.part_array_lba_offset
+    mov dl, [data.drive_num]
+    mov al, 1
     call load_sectors_lba
 
 .find_efi_part:
@@ -74,16 +76,30 @@ print:
 ; [ds:si] = 8 byte lba
 load_sectors_lba:
 .check_lba_range:
-    push ax
+    push ax     ; save sector count
+    ;push si
+    std
+    mov cx, 3
+    add si, 6
+.loop:
     lodsw
     cmp ax, 0
     jne halt
+    dec cx
+    jnz .loop
+
+    ;pop si
+
     lodsw
     cmp ax, .max_lba
-    jge halt
+    jae halt
+
+    cld
+    ;pop ax
+    ;ret
 
 .retrieve_drive_data:
-    push ax             ; save sector count
+    ;push ax             ; save sector count
     push dx             ; save drive number
     mov ah, 0x08
     xor di, di
@@ -92,7 +108,7 @@ load_sectors_lba:
 
     jc halt
     ;pop dx
-    pop ax
+    ;pop ax
 
 .convert:
     xor dx, dx
@@ -100,12 +116,28 @@ load_sectors_lba:
     and bx, 0xCF
     div bx
     inc dx
-    push dx     ; save sectors
+    push dx     ; save sector
 
-    xor dx, dx
-    mov bx
+    xor dx, dx  ; clear dx
+    xor bx, bx  ; clear bx
+    mov bl, dh  ; move number of heads to bl
+    div bx      ; ax/bx -> ax, dx
+    ; ax = cylinder
+    ; dx = head
 
-.max_lba: equ 0xFF0000
+    mov cx, ax
+    pop ax
+    and al, 0x3F
+    or cl, al
+    mov dh, dl
+    
+    pop ax
+    mov dl, al
+    pop ax
+    ret
+
+;.max_lba: equ 0xFF0000
+.max_lba: equ 0x000000FF
 
 ; Load the given sectors
 ; retrying 3 times on failure
@@ -170,6 +202,7 @@ validate_gpt_hdr:
 ; Enter an infinite loop
 ; to halt the machine
 halt:
+    cld
     mov si, strs.halted
     call print
 .loop:
@@ -186,6 +219,7 @@ data:
 strs:
 %ifdef DEBUG
 .test: db 'Hello World', 0x0D, 0x0A, 0
+.locate: db 'Here?', 0x0D, 0x0A, 0
 %endif
 .welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
 .halted: db 'Halted', 0
