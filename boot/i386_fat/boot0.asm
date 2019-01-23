@@ -63,9 +63,13 @@ _start:
     mov si, gpt_hdr.offset + gpt_hdr.part_array_lba_offset
     mov dl, [data.drive_num]
     mov al, 1
+    mov di, gpt_hdr.offset
     call load_sectors_lba
 
 .find_efi_part:
+    ;mov si, gpt_hdr.offset
+    ;add si, 56
+    ;call print
 
 %ifdef DEBUG
     mov si, strs.test
@@ -122,14 +126,9 @@ load_sectors_lba:
     int 0x13
 
     jc halt
-    ;pop dx
     pop ax              ; restore lba
 
-    ;ret
-
-%if 1
 .convert:
-    ;TST ax, 2
     push dx         ; preserve number of heads
 
     xor dx, dx
@@ -137,7 +136,6 @@ load_sectors_lba:
     and bx, 0x3F    ; isolate sectors per track
     div bx
     inc dx
-    ;TST dx, 3       ; verify that dx says 3 sectors
     pop bx          ; remove number of heads briefly
     push dx         ; save sector
     mov dx, bx      ; move number of heads back to dx
@@ -157,20 +155,21 @@ load_sectors_lba:
     pop ax
     or cl, al      ; cx = cylinder + sector
    
-    ;TST al, 3
- 
     mov dh, dl      ; dh = head
     pop ax
     mov dl, al      ; dl = drive number
 
     pop ax          ; al = number of sectors to read
-   
+    
+    mov bx, di      ; set bx to the destination
+
+%ifdef DEBUG
     TST dh, 0
     TST ch, 0
     TST cl, 0x03
- 
-    ret
 %endif
+    
+    ret
 
 ; Load the given sectors
 ; retrying 3 times on failure
@@ -238,8 +237,10 @@ halt:
     cld
     mov si, strs.halted
     call print
-.loop:
-    jmp .loop
+    cli
+    hlt
+;.loop:
+;    jmp .loop
 
 data:
 .drive_num: db 0
