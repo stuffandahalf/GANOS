@@ -1,6 +1,10 @@
 AS=nasm
 SECTOR_SIZE=512
 
+ifdef DEBUG
+	QEMU_DEBUG=-d cpu,exec,in_asm
+endif
+
 %.bin: %.asm
 	$(AS) -f bin -o $@ $<
 
@@ -14,7 +18,7 @@ boot.img: boot0.bin efi.bin ../../tools/configurator/configure
 
 .PHONY: run
 run: boot.img
-	qemu-system-i386 -s -hda $<
+	qemu-system-i386 -s $(QEMU_DEBUG) -hda $<
 
 .PHONY: clean
 clean:

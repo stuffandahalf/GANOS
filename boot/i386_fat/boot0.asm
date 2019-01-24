@@ -35,6 +35,16 @@ gpt_hdr:
 .part_entry_size: equ 0x80
 
 _start:
+.setup:
+    ; Configure segment registers to point to correct address
+    mov ax, cs
+    mov ds, ax
+    ;mov es, ax
+    ; initialize stack
+    mov ax, 0x07C0
+    mov ss, ax
+    mov sp, 0
+
     mov [data.drive_num], dl    ;Preserve drive number of loading drive
 
     mov si, strs.welcome
@@ -55,7 +65,6 @@ _start:
     mov dl, [data.drive_num]    ; restore the original drive number
     mov bx, gpt_hdr.offset      ; then move the offset to bx
     call load_sectors_chs
-
 .verify_gpt:
     call validate_gpt_hdr
 
@@ -102,6 +111,7 @@ print:
 ; [ds:di] = buffer
 load_sectors_lba:
 .check_lba_range:
+    push di     ; save the destination offset
     push ax     ; save sector count
     push si
     add si, 2
@@ -121,6 +131,8 @@ load_sectors_lba:
     push dx             ; save drive number
     push ax             ; save lba
     mov ah, 0x08
+    
+    mov di, ds
     xor di, di
     mov es, di
     int 0x13
@@ -160,13 +172,16 @@ load_sectors_lba:
     mov dl, al      ; dl = drive number
 
     pop ax          ; al = number of sectors to read
-    
-    mov bx, di      ; set bx to the destination
+
+    mov bx, ds
+    mov es, bx      ; set es to point to ds
+    pop bx          ; restore the destination offset
 
 %ifdef DEBUG
-    TST dh, 0
-    TST ch, 0
-    TST cl, 0x03
+    ;TST dh, 0
+    ;TST ch, 0
+    ;TST cl, 0x03
+    TST al, 1
 %endif
     
     ;ret
