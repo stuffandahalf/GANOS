@@ -185,7 +185,13 @@ load_sectors_chs:
 .load:
     mov ah, .read_function
     mov cx, [.cylinder_and_sector_address]
+%ifdef DEBUG
+    LOCATE
+%endif
     int .disk_interrupt     ; this line fails with gpt
+%ifdef DEBUG
+    LOCATE
+%endif
 
     jc .retry
 
