@@ -39,22 +39,21 @@ _start:
     ; Configure segment registers to point to correct address
     mov ax, cs
     mov ds, ax
-    ;mov es, ax
     ; initialize stack
     mov ax, 0x07C0
     mov ss, ax
-    mov sp, 0
+    xor sp, sp
 
-    mov [data.drive_num], dl    ;Preserve drive number of loading drive
+    mov [data.drive_num], dl    ; Preserve drive number of loading drive
 
     mov si, strs.welcome
     call print
 
+; Verify that this is a protective mbr
 .verify_mbr:
-    ; Verify that this is a protective mbr
     mov al, [part_tbl.part1 + part_entry.type]
     cmp al, 0xEE
-    jnz halt
+    jne halt
 
 ; load the gpt from the second sector of the drive
 .load_gpt_hdr:
@@ -102,7 +101,7 @@ print:
     ret
 
 ; Algorithm from http://www.osdever.net/tutorials/view/lba-to-chs
-; Convert the lba stored at [si] to chs
+; Convert the lba stored at [ds:si] to chs
 ; for use with int 13h
 ; parameters:
 ; al = sector count
@@ -113,29 +112,26 @@ load_sectors_lba:
 .check_lba_range:
     push di     ; save the destination offset
     push ax     ; save sector count
-    push si
-    add si, 2
+    push si     ; preserve the first lba address
+    add si, 2   ; move on to the next word
     mov cx, 3   ; number of words to check
 .loop:
-    lodsw
-    cmp ax, 0
+    lodsw       ; load the next word
+    cmp ax, 0   ; verify that it contains zeros
     jne halt
-    dec cx
-    jnz .loop
+    dec cx      ; decrement the counter
+    jnz .loop   ; repeat
 
-    pop si
+    pop si      ; restore the location of the lba
     lodsw       ; ax now contains the 16-bit lba
-    ;TST ax, 2
 
 .retrieve_drive_data:
     push dx             ; save drive number
     push ax             ; save lba
-    mov ah, 0x08
-    
-    mov di, ds
-    xor di, di
+    mov ah, disk_io.parameters_function
+    xor di, di          ; clear es:di
     mov es, di
-    int 0x13
+    int disk_io.interrupt   ; call disk io interrupt
 
     jc halt
     pop ax              ; restore lba
@@ -177,14 +173,7 @@ load_sectors_lba:
     mov es, bx      ; set es to point to ds
     pop bx          ; restore the destination offset
 
-%ifdef DEBUG
-    ;TST dh, 0
-    ;TST ch, 0
-    ;TST cl, 0x03
-    TST al, 1
-%endif
-    
-    ;ret
+    ; fall through to chs load routine
 
 ; Load the given sectors
 ; retrying 3 times on failure
@@ -194,19 +183,13 @@ load_sectors_chs:
     mov byte [.retry_counter], 3
     mov [.cylinder_and_sector_address], cx
 .reset_disk:
-    mov ah, .reset_function
-    int .disk_interrupt
+    mov ah, disk_io.reset_function
+    int disk_io.interrupt
     jc .fail
 .load:
-    mov ah, .read_function
+    mov ah, disk_io.load_function
     mov cx, [.cylinder_and_sector_address]
-%ifdef DEBUG
-    LOCATE
-%endif
-    int .disk_interrupt     ; this line fails with gpt
-%ifdef DEBUG
-    LOCATE
-%endif
+    int disk_io.interrupt
 
     jc .retry
 
@@ -222,16 +205,13 @@ load_sectors_chs:
     call print
     jmp halt
 
-.disk_interrupt: equ 0x13
-.reset_function: equ 0x00
-.read_function: equ 0x02
 .retry_counter: db 0
 .cylinder_and_sector_address: dw 0
 .fail_message: db 'Failed to load sectors', 0x0D, 0x0A, 0
 
 
 
-; validate that loaded sector is a gpt header
+; Validate that loaded sector is a gpt header
 validate_gpt_hdr:
     mov bl, data.efi_part_sig_len
     mov si, data.efi_part_sig
@@ -252,16 +232,13 @@ validate_gpt_hdr:
 .fail:
     jmp halt
 
-; Enter an infinite loop
-; to halt the machine
+; Disable interrupts and halt the machine
 halt:
     cld
     mov si, strs.halted
     call print
     cli
     hlt
-;.loop:
-;    jmp .loop
 
 data:
 .drive_num: db 0
@@ -280,6 +257,12 @@ strs:
 %endif
 .welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
 .halted: db 'Halted', 0
+
+disk_io:
+.interrupt: equ 0x13
+.reset_function: equ 0
+.load_function: equ 0x2
+.parameters_function: equ 0x8
 
     times 446 - ($ - $$) db 0
 
