@@ -1,7 +1,8 @@
     [BITS 16]
     org 0x7C00
 
-%define DEBUG
+;%define DEBUG
+;%define USE_LBA
 
 ;target_segment: equ 0x1000
 
@@ -25,6 +26,15 @@
 %%end:
     pop si
 %endmacro
+
+STRUC gpt_part
+    .part_type_guid: resb 16
+    .part_guid: resb 16
+    .first_lba: resb 8
+    .last_lba: resb 8
+    .attribute_flags: resb 8
+    .part_name: resw 36
+ENDSTRUC
 
 stage2_segment: equ 0x1000
 stage2_offset: equ 0x0000
@@ -57,6 +67,7 @@ _start:
 
 ; load the gpt from the second sector of the drive
 .load_gpt_hdr:
+%ifndef USE_LBA
     mov al, 1                   ; one sector
     mov ch, 0                   ; cylinder 0
     mov cl, 2                   ; from sector 2
@@ -64,25 +75,74 @@ _start:
     mov dl, [data.drive_num]    ; restore the original drive number
     mov bx, gpt_hdr.offset      ; then move the offset to bx
     call load_sectors_chs
+%else
+    mov si, data.gpt_hdr_lba
+    mov al, 1
+    mov di, gpt_hdr.offset
+    call load_sectors_lba
+%endif
+
 .verify_gpt:
-    call validate_gpt_hdr
+    ;call validate_gpt_hdr
+    mov di, gpt_hdr.offset
+    mov si, data.efi_part_sig
+    mov cl, data.efi_part_sig_len
+    call compare_bytes
+    cmp ax, 0
+    jne halt
 
 .load_part_array:
     mov si, gpt_hdr.offset + gpt_hdr.part_array_lba_offset
+    ;push si
     mov dl, [data.drive_num]
     mov al, 1
     mov di, gpt_hdr.offset
     call load_sectors_lba
 
 .find_efi_part:
-    ;mov si, gpt_hdr.offset
-    ;add si, 56
-    ;call print
+    mov cl, data.gpt_parts_per_sector
+.find_efi_part_loop:
+    xor ax, ax
+    mov al, data.gpt_parts_per_sector
+    sub al, cl
+    mov bl, gpt_part_size
+    mul bl
+    add ax, gpt_hdr.offset
 
-%ifdef DEBUG
-    mov si, strs.test
+    mov si, ax
+    push si
+    mov bl, data.guid_len
+
+.check_part_guid_zero:
+    lodsb
+    cmp al, 0
+    jne .part_guid_not_zero
+    dec bl
+    jnz .check_part_guid_zero
+    jz halt
+
+.part_guid_not_zero:
+    pop si
+    push cx
+    mov cl, data.guid_len
+    mov di, data.efi_sys_part_guid
+    call compare_bytes
+    pop cx
+    cmp ax, 0
+    je .efi_part_found
+
+.next_gpt_part:
+    dec cl
+    jnz .find_efi_part_loop
+    jz halt     ; halt if it is not in the first sector
+
+.efi_part_found:
+    mov si, strs.found_efi
     call print
-%endif
+
+    sub si, data.guid_len   ; go back to address of gpt part entry
+
+
     jmp halt
 
 ; Print a '\0' terminated string
@@ -99,6 +159,7 @@ print:
 .end:
     pop ax
     ret
+
 
 ; Algorithm from http://www.osdever.net/tutorials/view/lba-to-chs
 ; Convert the lba stored at [ds:si] to chs
@@ -162,7 +223,7 @@ load_sectors_lba:
     shl cl, 6
     pop ax
     or cl, al      ; cx = cylinder + sector
-   
+
     mov dh, dl      ; dh = head
     pop ax
     mov dl, al      ; dl = drive number
@@ -181,14 +242,16 @@ load_sectors_lba:
 load_sectors_chs:
 .init:
     mov byte [.retry_counter], 3
-    mov [.cylinder_and_sector_address], cx
+    ;mov [.cylinder_and_sector_address], cx
+    push cx
 .reset_disk:
     mov ah, disk_io.reset_function
     int disk_io.interrupt
     jc .fail
 .load:
     mov ah, disk_io.load_function
-    mov cx, [.cylinder_and_sector_address]
+    ;mov cx, [.cylinder_and_sector_address]
+    pop cx
     int disk_io.interrupt
 
     jc .retry
@@ -206,31 +269,33 @@ load_sectors_chs:
     jmp halt
 
 .retry_counter: db 0
-.cylinder_and_sector_address: dw 0
+;.cylinder_and_sector_address: dw 0
 .fail_message: db 'Failed to load sectors', 0x0D, 0x0A, 0
 
 
 
 ; Validate that loaded sector is a gpt header
-validate_gpt_hdr:
-    mov bl, data.efi_part_sig_len
-    mov si, data.efi_part_sig
-    mov di, gpt_hdr.offset
-
+;validate_gpt_hdr:
+; ds:si = address of first set of bytes
+; ds:di = address of second set of bytes
+; cl = number of bytes to compare
+compare_bytes:
 .loop:
     lodsb   ; load al with next character from required header
     cmp [di], al
     jne .fail
     inc di  ; go to next character in loaded header
 
-    dec bl
+    dec cl
     jnz .loop
 
 .success:
+    xor ax, ax
     ret
 
 .fail:
-    jmp halt
+    mov ax, 1
+    ret
 
 ; Disable interrupts and halt the machine
 halt:
@@ -244,9 +309,17 @@ data:
 .drive_num: db 0
 .heads: db 0
 .total_cylinders_and_spt: dw 0  ; spt = sectors per track
+%ifdef USE_LBA
+.gpt_hdr_lba: dq 1
+%endif
 .gpt_array_lba: db 8
 .efi_part_sig: db 'EFI PART'
 .efi_part_sig_len: equ 8
+.efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
+.guid_len: equ 16
+.gpt_parts_per_sector: equ 4
+.efi_exec_name: db 'EFI.BIN'
+.efi_exec_name_len: equ 7
 
 strs:
 %ifdef DEBUG
@@ -256,6 +329,7 @@ strs:
 .nequal: db 'register is not equal', 0x0D, 0x0A, 0
 %endif
 .welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
+.found_efi: db 'Found EFI partition', 0x0D, 0x0A, 0
 .halted: db 'Halted', 0
 
 disk_io:
@@ -264,7 +338,7 @@ disk_io:
 .load_function: equ 0x2
 .parameters_function: equ 0x8
 
-    times 446 - ($ - $$) db 0
+    ;times 446 - ($ - $$) db 0
 
 STRUC part_entry
     .status: resb 1
