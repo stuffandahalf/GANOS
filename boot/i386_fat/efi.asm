@@ -1,4 +1,4 @@
-; EFI emulator for i386 platforms
+; UEFI for i386 platforms
 ; Written by Gregory Norton
 
     [bits 16]
