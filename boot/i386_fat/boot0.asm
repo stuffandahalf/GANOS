@@ -169,7 +169,7 @@ load_sectors_lba:
     TST cl, 0x03
 %endif
     
-    ret
+    ;ret
 
 ; Load the given sectors
 ; retrying 3 times on failure
@@ -185,7 +185,7 @@ load_sectors_chs:
 .load:
     mov ah, .read_function
     mov cx, [.cylinder_and_sector_address]
-    int .disk_interrupt
+    int .disk_interrupt     ; this line fails with gpt
 
     jc .retry
 
