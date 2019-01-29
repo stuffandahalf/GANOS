@@ -3,29 +3,10 @@
 
 ;%define DEBUG
 ;%define USE_LBA
+;%define SIZE_MATTERS
 
-;target_segment: equ 0x1000
-
-%macro LOCATE 0
-    push si
-    mov si, strs.locate
-    call print
-    pop si
-%endmacro
-
-%macro TST 2
-    push si
-    cmp %1, %2
-    jne %%notequal
-    mov si, strs.equal
-    call print
-    jmp %%end
-%%notequal:
-    mov si, strs.nequal
-    call print
-%%end:
-    pop si
-%endmacro
+target_segment: equ 0x1000
+target_offset: equ 0x0000
 
 STRUC gpt_part
     .part_type_guid: resb 16
@@ -47,12 +28,14 @@ gpt_hdr:
 _start:
 .setup:
     ; Configure segment registers to point to correct address
+    cli
     mov ax, cs
     mov ds, ax
     ; initialize stack
     mov ax, 0x07C0
     mov ss, ax
     xor sp, sp
+    sti
 
     mov [data.drive_num], dl    ; Preserve drive number of loading drive
 
@@ -64,6 +47,33 @@ _start:
     mov al, [part_tbl.part1 + part_entry.type]
     cmp al, 0xEE
     jne halt
+
+.check_int13_extensions:
+    mov ah, disk_io.check_extension_function
+    mov bh, [boot_sig]
+    mov bl, [boot_sig + 1]
+    int disk_io.interrupt
+
+    jc .load_gpt_hdr    ; if extensions not present, skip setting sector size
+
+%ifdef SIZE_MATTERS
+.get_sector_size:
+    mov dl, [data.drive_num]
+    mov ah, disk_io.extended_parameters_function
+    push ds
+    mov si, target_segment
+    mov ds, si
+    mov es, si
+    xor si, si
+    int disk_io.interrupt
+    pop ds
+    
+    jc halt
+
+.save_sector_size:
+    mov ax, [es:si+0x18]
+    mov [data.sector_size], ax
+%endif
 
 ; load the gpt from the second sector of the drive
 .load_gpt_hdr:
@@ -137,11 +147,15 @@ _start:
     jz halt     ; halt if it is not in the first sector
 
 .efi_part_found:
+%ifdef DEBUG
     mov si, strs.found_efi
     call print
+%endif
 
     sub si, data.guid_len   ; go back to address of gpt part entry
 
+.load_efi:
+    
 
     jmp halt
 
@@ -307,29 +321,29 @@ halt:
 
 data:
 .drive_num: db 0
-.heads: db 0
-.total_cylinders_and_spt: dw 0  ; spt = sectors per track
+%ifdef SIZE_MATTERS
+.sector_size: dw 512
+%endif
 %ifdef USE_LBA
 .gpt_hdr_lba: dq 1
 %endif
-.gpt_array_lba: db 8
+;.gpt_array_lba: db 8
 .efi_part_sig: db 'EFI PART'
 .efi_part_sig_len: equ 8
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
 .guid_len: equ 16
 .gpt_parts_per_sector: equ 4
-.efi_exec_name: db 'EFI.BIN'
+;.efi_exec_name: db 'EFI.BIN'
 .efi_exec_name_len: equ 7
 
 strs:
+;.welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
+;.found_efi: db 'Found EFI partition', 0x0D, 0x0A, 0
+.welcome: db 'Loading', 0x0D, 0x0A, 0
 %ifdef DEBUG
-.test: db 'Hello World', 0x0D, 0x0A, 0
-.locate: db 'Here?', 0x0D, 0x0A, 0
-.equal: db 'register is equal', 0x0D, 0x0A, 0
-.nequal: db 'register is not equal', 0x0D, 0x0A, 0
+;.found_efi: db 'Found part', 0x0D, 0x0A, 0
 %endif
-.welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
-.found_efi: db 'Found EFI partition', 0x0D, 0x0A, 0
+.test: db 'test', 0x0D, 0x0A, 0
 .halted: db 'Halted', 0
 
 disk_io:
@@ -337,8 +351,10 @@ disk_io:
 .reset_function: equ 0
 .load_function: equ 0x2
 .parameters_function: equ 0x8
+.check_extension_function: equ 0x41
+.extended_parameters_function: equ 0x48
 
-    ;times 446 - ($ - $$) db 0
+    times 446 - ($ - $$) db 0
 
 STRUC part_entry
     .status: resb 1
