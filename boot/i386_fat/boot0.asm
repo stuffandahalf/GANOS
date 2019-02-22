@@ -148,14 +148,24 @@ _start:
 
 .efi_part_found:
 %ifdef DEBUG
+    push si
     mov si, strs.found_efi
     call print
+    pop si
 %endif
 
     sub si, data.guid_len   ; go back to address of gpt part entry
 
 .load_efi:
-    
+    xor ax, ax
+    mov ds, ax
+    add si, gpt_part.first_lba
+    mov al, [data.cluster_size]
+    mov dl, [data.drive_num]
+    mov di, 0x1000
+    call load_sectors_lba
+    mov si, strs.test
+    call print
 
     jmp halt
 
@@ -321,6 +331,7 @@ halt:
 
 data:
 .drive_num: db 0
+.cluster_size: db 8
 %ifdef SIZE_MATTERS
 .sector_size: dw 512
 %endif
