@@ -8,8 +8,8 @@ endif
 %.bin: %.asm
 	$(AS) -f bin -o $@ $<
 
-boot.img: boot0.bin efi.bin ../../tools/configurator/configure
-	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=1024
+boot.img: boot0.bin hello.bin efi.bin ../../tools/configurator/configure
+	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=262144
 	dd if=boot0.bin of=$@ seek=0 count=1 conv=notrunc
 	../../tools/configurator/configure -d $@ -s $(SECTOR_SIZE)
 

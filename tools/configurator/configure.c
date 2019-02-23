@@ -20,9 +20,10 @@
 
 #define PART_ARRAY_SLOTS 128
 
-#define EFI_SYSTEM_PART_LBA_SIZE (32 * 1024 * 1024)
+#define EFI_SYSTEM_PART_LBA_SIZE (64 * 1024 * 1024)
 
-const uint64_t LBA_COUNT = CYLINDERS * HEADS * SECTORS_PER_HEAD;
+//const uint64_t LBA_COUNT = CYLINDERS * HEADS * SECTORS_PER_HEAD;
+
 
 struct mbr_partition_entry {
     uint8_t status;
@@ -67,9 +68,9 @@ struct {
     size_t sector_size;
 } configuration = { NULL, 0 };
 
-int main(int argc, char **argv) {    
-    printf("available blocks %ld\n", LBA_COUNT);
-    printf("gpt partition entry size %ld bytes\n", sizeof(struct gpt_partition_entry));
+int main(int argc, char **argv) {
+    //printf("available blocks %ld\n", LBA_COUNT);
+    //printf("gpt partition entry size %ld bytes\n", sizeof(struct gpt_partition_entry));
     configure(argc, argv);
     
     if (configuration.dev_name == NULL) {
@@ -92,6 +93,9 @@ int main(int argc, char **argv) {
 
     printf("partition array size %ld\n", sizeof(struct gpt_partition_entry) * PART_ARRAY_SLOTS / 512);
     
+    const size_t LBA_COUNT = device.size / device.sector_size;
+    printf("available blocks %ld\n", LBA_COUNT);
+    
     // Add protective mbr partition entry
     fseek(device.fptr, MBR_SIZE - sizeof(struct mbr_partition_entry) * 4 - 2, SEEK_SET);
     struct mbr_partition_entry block_part = {
@@ -100,17 +104,17 @@ int main(int argc, char **argv) {
         .type = 0xEE,
         .last_chs_address = { 2, 32, 16 },
         .first_lba = 1,
-        .sector_count = device.size / device.sector_size
+        .sector_count = device.size / device.sector_size - 1
     };
     fwrite(&block_part, sizeof(struct mbr_partition_entry), 1, device.fptr);
 
     // Create gpt partition array
     struct gpt_partition_entry part_array[PART_ARRAY_SLOTS] = { 0 };
-    struct gpt_partition_entry efi_part = {\
+    struct gpt_partition_entry efi_part = {
         .partition_type_guid = {0x28, 0x73, 0x2A, 0xC1, /* - */ 0x1F, 0xF8, /* - */ 0xD2, 0x11, /* - */ 0xBA, 0x4B, /* - */ 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B },
         .unique_partition_guid = { 0 },
         .first_lba = PART_DATA_LBA,
-        .last_lba = PART_DATA_LBA + 4,
+        .last_lba = PART_DATA_LBA + (EFI_SYSTEM_PART_LBA_SIZE / device.sector_size),
         .attribute_flags = 1,
         .partition_name = { 'E', 'F', 'I', ' ', 'S', 'y', 's', 't', 'e', 'm', ' ', 'P', 'a', 'r', 't', 'i', 't', 'i', 'o', 'n' }
         //.partition_name = L"EFI System Partition" // Doesn't work because wchar_t is defined as an int
@@ -140,8 +144,8 @@ int main(int argc, char **argv) {
     struct gpt_header backup_gpt_hdr = primary_gpt_hdr;
     backup_gpt_hdr.current_lba = primary_gpt_hdr.backup_lba;
     backup_gpt_hdr.backup_lba = primary_gpt_hdr.current_lba;
-    backup_gpt_hdr.part_array_lba = LBA_COUNT - PART_DATA_LBA;
-    backup_gpt_hdr.crc32_zlib = 0;
+    backup_gpt_hdr.part_array_lba = LBA_COUNT - PART_ARRAY_SLOTS / (device.sector_size / sizeof(struct gpt_partition_entry)) - 1;//LBA_COUNT - PART_DATA_LBA;
+    //backup_gpt_hdr.crc32_zlib = 0;
     backup_gpt_hdr.crc32_zlib = crc32(0L, (void *)&backup_gpt_hdr, sizeof(struct gpt_header)),
     
     
