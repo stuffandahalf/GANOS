@@ -372,12 +372,23 @@ STRUC part_entry
     .first_chs_address: resb 3
     .type: resb 1
     .last_chs_address: resb 3
-    .first_lba: resb 4
-    .sector_count: resb 4
+    .first_lba: resd 1
+    .sector_count: resd 1
 ENDSTRUC
 
 part_tbl:
-.part1: times part_entry_size db 0
+%if 0
+;.part1: times part_entry_size db 0
+%endif
+.part1:
+ISTRUC part_entry
+    at part_entry.status, db 0x80
+    at part_entry.first_chs_address, db 0x00, 0x01, 0x00
+    at part_entry.type, db 0xEE
+    at part_entry.last_chs_address, db 0xFF, 0xFF, 0xFF
+    at part_entry.first_lba, dd 0x00000000
+    at part_entry.sector_count, dd 0xFFFFFFFF
+IEND
 .part2: times part_entry_size db 0
 .part3: times part_entry_size db 0
 .part4: times part_entry_size db 0
