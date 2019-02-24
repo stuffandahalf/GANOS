@@ -13,6 +13,12 @@ boot.img: boot0.bin hello.bin efi.bin ../../tools/configurator/configure
 	dd if=boot0.bin of=$@ seek=0 count=1 conv=notrunc
 	../../tools/configurator/configure -d $@ -s $(SECTOR_SIZE)
 
+test.img: boot0.bin hello.bin
+	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=262144
+	sgdisk -n 1:2048:133119 -t 1:ef00 -c 1:"EFI System Partition" $@
+	lostep -o 1048576 /dev/loop0 $@
+	mkdosfs -F32 /dev/loop0 #need to figure out how many blocks?
+
 ../../tools/configurator/configure:
 	cd ../../tools/configurator && make
 
