@@ -18,6 +18,15 @@ boot.img: boot0.bin hello.bin
 	sgdisk -n 1:2048:133119 -t 1:ef00 -c 1:"EFI System Partition" $@
 	dd if=boot0.bin of=$@ seek=0 count=1 conv=notrunc
 	( echo 'w'; echo 'y' ) | gdisk $@
+	sudo losetup -o1048576 /dev/loop16 $@
+	sudo mkdosfs -F32 /dev/loop16
+	mkdir ./image_mnt
+	sudo mount /dev/loop16 ./image_mnt
+	sudo cp hello.bin ./image_mnt/
+	sudo umount /dev/loop16
+	sudo losetup -d /dev/loop16
+	rmdir ./image_mnt
+
 
 ../../tools/configurator/configure:
 	cd ../../tools/configurator && make
@@ -30,5 +39,5 @@ run: boot.img
 clean:
 	rm -rf *.bin
 	rm -rf *.o
-	rm -rf boot.img
-	cd ../../tools/configurator && make clean
+	rm -rf *.img
+	#cd ../../tools/configurator && make clean

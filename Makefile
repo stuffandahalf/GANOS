@@ -1,8 +1,25 @@
-ARCH=i386
+ifndef ARCH
+	ARCH=i386
+endif
+ifndef IMAGETYPE
+	IMAGETYPE=hdd
+endif
 
-BOOT_SECTOR=sys/boot/$(ARCH)/boot.bin
+ifdef DEBUG
+	QEMU_DEBUG=-d cpu,exec,in_asm
+endif
 
-floppy.img: $(BOOT_SECTOR)
-	dd if=/dev/zero of=$@ bs=1024 count=1440
-	dd if=$(BOOT_SECTOR) of=$@ seek=0 count=1 conv=notrunc
-	
+$(ARCH)_$(IMAGETYPE).img: boot/$(ARCH)/$(ARCH)_$(IMAGETYPE).img
+	cp $< ./
+
+boot/$(ARCH)/$(ARCH)_$(IMAGETYPE).img: boot/Makefile
+	cd boot/ && make
+
+.PHONY: run
+run: $(ARCH)_$(IMAGETYPE).img
+	qemu-system-$(ARCH) -s $(QEMU_DEBUG) -hda $<
+
+.PHONY: clean
+clean:
+	cd boot && make clean
+
