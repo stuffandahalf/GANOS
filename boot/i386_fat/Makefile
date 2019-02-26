@@ -18,7 +18,7 @@ boot.img: boot0.bin hello.bin
 	sgdisk -n 1:2048:133119 -t 1:ef00 -c 1:"EFI System Partition" $@
 	dd if=boot0.bin of=$@ seek=0 count=1 conv=notrunc
 	( echo 'w'; echo 'y' ) | gdisk $@
-	sudo losetup -f -o1048576 $@
+	sudo losetup -f -o1048576 --sizelimit 67108864 $@
 	$(eval LD=`sudo losetup -j $@ | grep -o "/dev/loop[0-9]*"`)
 	mkdir -p ./image_mnt
 	sudo mkdosfs -F32 $(LD)
