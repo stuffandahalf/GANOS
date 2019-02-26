@@ -20,7 +20,7 @@ boot.img: boot0.bin hello.bin
 	( echo 'w'; echo 'y' ) | gdisk $@
 	sudo losetup -f -o1048576 $@
 	$(eval LD=`sudo losetup -j $@ | grep -o "/dev/loop[0-9]*"`)
-	mkdir ./image_mnt
+	mkdir -p ./image_mnt
 	sudo mkdosfs -F32 $(LD)
 	sudo mount $(LD) ./image_mnt
 	sudo cp hello.bin ./image_mnt/
@@ -28,6 +28,24 @@ boot.img: boot0.bin hello.bin
 	sudo losetup -d $(LD)
 	rmdir ./image_mnt
 	$(eval LD=)
+
+boot.vdi: boot.img
+	VBoxManage convertfromraw --format VDI $< $@
+
+#.PHONY: mount\
+mount: boot.img\
+	sudo losetup -f -o1048576 $<\
+	$(eval LD=`sudo losetup -j $< | grep -o "/dev/loop[0-9]*"`)\
+	mkdir ./image_mnt\
+	sudo mount $(LD) ./image_mnt\
+\
+.PHONY: unmount\
+unmount: boot.img\
+	echo $(LD)\
+	sudo umount $(LD)\
+	sudo losetup -d $(LD)\
+	rmdir ./image_mnt\
+	$(eval LD=)\
 
 ../../tools/configurator/configure:
 	cd ../../tools/configurator && make
@@ -41,4 +59,5 @@ clean:
 	rm -rf *.bin
 	rm -rf *.o
 	rm -rf *.img
+	rm -rf *.vdi
 	#cd ../../tools/configurator && make clean
