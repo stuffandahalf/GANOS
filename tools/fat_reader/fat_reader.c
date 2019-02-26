@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 struct bpb {
@@ -73,6 +74,26 @@ int main(int argc, char **argv) {
 
     printf("%ld\n", sizeof(struct bpb));
     printf("%X\n", *(uint16_t *)bpb.boot_sig);
+    
+    uint32_t *fat = malloc(bpb.sectors_per_fat * bpb.bytes_per_sector);
+    if (fat == NULL) {
+        fprintf(stderr, "Failed to allocate memory for FAT.\n");
+        return 1;
+    }
+    
+    fseek(dev, bpb.reserved_sectors * bpb.bytes_per_sector/* + bpb.bytes_per_sector*/, SEEK_SET);
+    fread(fat, sizeof(uint8_t), bpb.sectors_per_fat * bpb.bytes_per_sector, dev);
+    
+    size_t bytes = bpb.sectors_per_fat * bpb.bytes_per_sector;
+    printf("%ld\n", bytes);
+    for (int i = 0; bytes != 0; i++) {
+        printf("%X\t", fat[i]);
+        if (i % 10 == 0) {
+            printf("\n");
+        }
+        bytes -= sizeof(uint32_t);
+    }
+    free(fat);
 
     fclose(dev);
 
