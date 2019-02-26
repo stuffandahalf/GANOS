@@ -92,6 +92,8 @@ int main(int argc, char **argv) {
     }
     printf("\n");
 
+    printf("%d\n", *(uint16_t *)bpb.boot_sig);
+
     fclose(dev);
 
     return 0;
