@@ -75,25 +75,42 @@ int main(int argc, char **argv) {
     printf("%ld\n", sizeof(struct bpb));
     printf("%X\n", *(uint16_t *)bpb.boot_sig);
     
-    uint32_t *fat = malloc(bpb.sectors_per_fat * bpb.bytes_per_sector);
+    printf("%X\n", bpb.root_dir_cluster);
+    
+    
+    size_t cluster_size = bpb.sectors_per_cluster * bpb.bytes_per_sector;
+    printf("Cluster Size: %ld\n", cluster_size);
+    printf("offset: %d\n", (bpb.reserved_sectors * bpb.bytes_per_sector) + (bpb.root_dir_cluster * cluster_size));
+    fseek(dev, (bpb.reserved_sectors + (bpb.number_of_fats * bpb.sectors_per_fat)) * bpb.bytes_per_sector, SEEK_SET);
+    uint8_t *root_cluster = malloc(sizeof(uint8_t) * cluster_size);
+    if (root_cluster == NULL) {
+        fprintf(stderr, "Failed to allocate memory for root directory cluster.\n");
+        return 1;
+    }
+    fread(root_cluster, sizeof(uint8_t), cluster_size, dev);
+    /*for(int i = 0; i < cluster_size; i++) {
+        printf("%d\n", root_cluster[i]);
+    }*/
+    
+    // SUCCESS
+    
+    free(root_cluster);
+    
+    /*uint32_t *fat = malloc(bpb.sectors_per_fat * bpb.bytes_per_sector);
     if (fat == NULL) {
         fprintf(stderr, "Failed to allocate memory for FAT.\n");
         return 1;
     }
     
-    fseek(dev, bpb.reserved_sectors * bpb.bytes_per_sector/* + bpb.bytes_per_sector*/, SEEK_SET);
+    fseek(dev, bpb.reserved_sectors * bpb.bytes_per_sector, SEEK_SET);
     fread(fat, sizeof(uint8_t), bpb.sectors_per_fat * bpb.bytes_per_sector, dev);
     
     size_t bytes = bpb.sectors_per_fat * bpb.bytes_per_sector;
-    printf("%ld\n", bytes);
-    for (int i = 0; bytes != 0; i++) {
-        printf("%X\t", fat[i]);
-        if (i % 10 == 0) {
-            printf("\n");
-        }
+    for (int i = 0; bytes != 0 && fat[i] != 0; i++) {
+        printf("%X\n", fat[i]);
         bytes -= sizeof(uint32_t);
     }
-    free(fat);
+    free(fat);*/
 
     fclose(dev);
 
