@@ -5,6 +5,7 @@
 ;%define USE_LBA
 ;%define SIZE_MATTERS
 
+sector_size: equ 0x200
 target_segment: equ 0x1000
 target_offset: equ 0x0000
 
@@ -17,8 +18,15 @@ STRUC gpt_part
     .part_name: resw 36
 ENDSTRUC
 
-stage2_segment: equ 0x1000
-stage2_offset: equ 0x0000
+;stage2_segment: equ 0x1000
+;stage2_offset: equ 0x0000
+stage2:
+.segment: equ 0x0000
+.offset: equ 0x0500
+
+scratch:
+.segment: equ 0x0000
+.offset: equ 0x7E00
 
 gpt_hdr:
 .offset: equ 0x1000
@@ -29,13 +37,25 @@ _start:
 .setup:
     ; Configure segment registers to point to correct address
     cli
-    mov ax, cs
+    cld
+    ;mov ax, cs
+    xor ax, ax
     mov ds, ax
+    mov es, ax
     ; initialize stack
-    mov ax, 0x07C0
+    ;mov ax, 0x07C0
+    ;mov ss, ax
+    ;xor sp, sp
     mov ss, ax
-    xor sp, sp
+    mov sp, _start
     sti
+
+    ;jmp ax:.init
+    push ax
+    push word .init
+    retf
+
+.init:
 
     mov [data.drive_num], dl    ; Preserve drive number of loading drive
 
@@ -48,6 +68,7 @@ _start:
     cmp al, 0xEE
     jne halt
 
+%if 0
 .check_int13_extensions:
     mov ah, disk_io.check_extension_function
     mov bh, [boot_sig]
@@ -55,6 +76,7 @@ _start:
     int disk_io.interrupt
 
     jc .load_gpt_hdr    ; if extensions not present, skip setting sector size
+%endif
 
 %ifdef SIZE_MATTERS
 .get_sector_size:
@@ -156,14 +178,33 @@ _start:
 
     sub si, data.guid_len   ; go back to address of gpt part entry
 
-.load_efi:
-    xor ax, ax
-    mov ds, ax
-    add si, gpt_part.first_lba
-    mov al, [data.cluster_size]
+%if 0
+    push si
+    add si, gpt_part.part_name
+    call printl
+    pop si
+%endif
+
+.load_stage2:
+    ; CORRECT THIS **********
+    ;add si, gpt_part.first_lba
+    mov si, data.test
+    ;mov si, data.test2
+    
+    ;mov al, [data.cluster_size]
+    mov al, 1
     mov dl, [data.drive_num]
-    mov di, 0x1000
+    mov di, scratch.offset
     call load_sectors_lba
+
+    mov si, strs.test
+    call print
+
+    ; Conversion seems to fail with larger offsets
+    mov si, scratch.offset + 56; + 3;strs.test - _start; + 0x0036
+    ;add si, 4
+    call print
+
     mov si, strs.test
     call print
 
@@ -184,6 +225,20 @@ print:
     pop ax
     ret
 
+%if 0
+printl:
+    push ax
+.loop:
+    lodsw
+    cmp al, 0
+    je .end
+    mov ah, 0x0E
+    int 0x10
+    jmp .loop
+.end:
+    pop ax
+    ret
+%endif
 
 ; Algorithm from http://www.osdever.net/tutorials/view/lba-to-chs
 ; Convert the lba stored at [ds:si] to chs
@@ -203,7 +258,8 @@ load_sectors_lba:
 .loop:
     lodsw       ; load the next word
     cmp ax, 0   ; verify that it contains zeros
-    jne halt
+    ;jne halt
+    jne load_sectors_chs.fail
     dec cx      ; decrement the counter
     jnz .loop   ; repeat
 
@@ -218,9 +274,10 @@ load_sectors_lba:
     mov es, di
     int disk_io.interrupt   ; call disk io interrupt
 
-    jc halt
+    ;jc halt
+    jc load_sectors_chs.fail
     pop ax              ; restore lba
-
+    
 .convert:
     push dx         ; preserve number of heads
 
@@ -246,6 +303,7 @@ load_sectors_lba:
     mov cl, ah
     shl cl, 6
     pop ax
+    and ax, 0x3F
     or cl, al      ; cx = cylinder + sector
 
     mov dh, dl      ; dh = head
@@ -254,8 +312,8 @@ load_sectors_lba:
 
     pop ax          ; al = number of sectors to read
 
-    mov bx, ds
-    mov es, bx      ; set es to point to ds
+    ;mov bx, ds
+    ;mov es, bx      ; set es to point to ds
     pop bx          ; restore the destination offset
 
     ; fall through to chs load routine
@@ -346,6 +404,10 @@ data:
 .gpt_parts_per_sector: equ 4
 ;.efi_exec_name: db 'EFI.BIN'
 .efi_exec_name_len: equ 7
+;.test: dq 4099
+;.test: dq 2048
+;.test: dq 4098
+.test: dq 2
 
 strs:
 ;.welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
