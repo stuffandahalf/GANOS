@@ -39,8 +39,20 @@ struct bpb {
     uint8_t boot_sig[2];
 } __attribute__((packed));
 
+struct vfat_lfn {
+    uint8_t sequence;
+    uint16_t name1[5];
+    uint8_t attributes;
+    uint8_t type;
+    uint8_t checksum;
+    uint16_t name2[6];
+    uint16_t first_cluster;
+    uint16_t name3[2];
+    
+} __attribute__((packed));
+
 struct dir_entry {
-    uint8_t lfn[32];
+    struct vfat_lfn lfn;
     
     uint8_t short_fname[8];
     uint8_t short_ext[3];
@@ -89,8 +101,6 @@ int main(int argc, char **argv) {
         printf("%c", bpb.fs_type[i]);
     }
     printf("\n");
-
-    //printf("%X\n", *(uint16_t *)bpb.boot_sig);
     
     printf("root directory cluster: %d\n", bpb.root_dir_cluster);
     
@@ -115,44 +125,29 @@ int main(int argc, char **argv) {
     
     printf("directory entry size: %lX\n", sizeof(struct dir_entry));
     
-    struct dir_entry *entry = (struct dir_entry *)root_cluster;
-    for (int i = 0; i < cluster_size / sizeof(struct dir_entry); i++) {
-        printf("Size: %d\n", entry[i].file_size);
-        for (int j = 0; j < 8; j++) {
-            printf("%c", entry[i].short_fname[j]);
-        }
-        printf(".");
-        for (int j = 0; j < 3; j++) {
-            printf("%c", entry[i].short_ext[j]);
-        }
-        printf("\n");
-        //printf("fname: %s"
-    }
     
-    /*for(int i = 0; i < cluster_size; i++) {
-        printf("%X\n", root_cluster[i]);
-    }*/
+    const char *target = "HELLO.BIN";
+    struct dir_entry *entries = (struct dir_entry *)root_cluster;
+    for (int i = 0; i < cluster_size / sizeof(struct dir_entry); i++) {
+        if (entries[i].short_fname[0] == '\0') {
+            break;
+        }
+        if (!(entries[i].file_attributes & 0x12)) {
+            for (int j = 0; j < 8 && entries[i].short_fname[j] != ' '; j++) {
+                printf("%c", entries[i].short_fname[j]);
+            }
+            printf(".");
+            for (int j = 0; j < 3 && entries[i].short_ext[j] != ' '; j++) {
+                printf("%c", entries[i].short_ext[j]);
+            }
+            printf("\n");
+            printf("Size: %d\n", entries[i].file_size);
+        }
+    }
     
     // SUCCESS
     
     free(root_cluster);
-    
-    /*uint32_t *fat = malloc(bpb.sectors_per_fat * bpb.bytes_per_sector);
-    if (fat == NULL) {
-        fprintf(stderr, "Failed to allocate memory for FAT.\n");
-        return 1;
-    }
-    
-    fseek(dev, bpb.reserved_sectors * bpb.bytes_per_sector, SEEK_SET);
-    fread(fat, sizeof(uint8_t), bpb.sectors_per_fat * bpb.bytes_per_sector, dev);
-    
-    size_t bytes = bpb.sectors_per_fat * bpb.bytes_per_sector;
-    for (int i = 0; bytes != 0 && fat[i] != 0; i++) {
-        printf("%X\n", fat[i]);
-        bytes -= sizeof(uint32_t);
-    }
-    free(fat);*/
-
     fclose(dev);
 
     return 0;
