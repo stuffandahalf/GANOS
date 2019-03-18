@@ -4,6 +4,7 @@
 ;%define DEBUG
 ;%define USE_LBA
 ;%define SIZE_MATTERS
+%define STACK_PACKET
 
 sector_size: equ 0x200
 target_segment: equ 0x1000
@@ -18,6 +19,15 @@ STRUC gpt_part
     .part_name: resw 36
 ENDSTRUC
 
+STRUC int13_ext_packet
+    .size: resb 1
+    .unused: resb 1
+    .count: resw 1
+    .dest_offset: resw 1
+    .dest_segment: resw 1
+    .lba: resq 1
+ENDSTRUC
+
 ;stage2_segment: equ 0x1000
 ;stage2_offset: equ 0x0000
 stage2:
@@ -28,26 +38,19 @@ scratch:
 .segment: equ 0x0000
 .offset: equ 0x7E00
 
-gpt_hdr:
-.offset: equ 0x1000
-.part_array_lba_offset: equ 0x48
-.part_entry_size: equ 0x80
-
 _start:
 .setup:
     ; Configure segment registers to point to correct address
     cli
     cld
-    ;mov ax, cs
+    ;mov ax, cs    
     xor ax, ax
     mov ds, ax
     mov es, ax
     ; initialize stack
-    ;mov ax, 0x07C0
-    ;mov ss, ax
-    ;xor sp, sp
     mov ss, ax
     mov sp, _start
+    
     sti
 
     ;jmp ax:.init
@@ -56,7 +59,6 @@ _start:
     retf
 
 .init:
-
     mov [data.drive_num], dl    ; Preserve drive number of loading drive
 
     mov si, strs.welcome
@@ -68,61 +70,35 @@ _start:
     cmp al, 0xEE
     jne halt
 
-%if 0
 .check_int13_extensions:
     mov ah, disk_io.check_extension_function
-    mov bh, [boot_sig]
-    mov bl, [boot_sig + 1]
+    mov bx, [boot_sig]
+    xchg bl, bh
     int disk_io.interrupt
-
-    jc .load_gpt_hdr    ; if extensions not present, skip setting sector size
-%endif
-
-%ifdef SIZE_MATTERS
-.get_sector_size:
-    mov dl, [data.drive_num]
-    mov ah, disk_io.extended_parameters_function
-    push ds
-    mov si, target_segment
-    mov ds, si
-    mov es, si
-    xor si, si
-    int disk_io.interrupt
-    pop ds
-    
-    jc halt
-
-.save_sector_size:
-    mov ax, [es:si+0x18]
-    mov [data.sector_size], ax
-%endif
+    jnc .load_gpt_hdr
+    jmp halt
 
 ; load the gpt from the second sector of the drive
 .load_gpt_hdr:
-%ifndef USE_LBA
-    mov al, 1                   ; one sector
-    mov ch, 0                   ; cylinder 0
-    mov cl, 2                   ; from sector 2
-    mov dh, 0                   ; head 0
-    mov dl, [data.drive_num]    ; restore the original drive number
-    mov bx, gpt_hdr.offset      ; then move the offset to bx
-    call load_sectors_chs
-%else
-    mov si, data.gpt_hdr_lba
-    mov al, 1
-    mov di, gpt_hdr.offset
+    mov dl, [data.drive_num]
+    mov si, data.efi_part_lba
+    mov bx, 1
+    mov di, scratch.offset
     call load_sectors_lba
-%endif
 
 .verify_gpt:
     ;call validate_gpt_hdr
-    mov di, gpt_hdr.offset
+    mov di, scratch.offset
     mov si, data.efi_part_sig
     mov cl, data.efi_part_sig_len
     call compare_bytes
     cmp ax, 0
     jne halt
-
+    
+    mov si, strs.test
+    call print
+    
+%if 0
 .load_part_array:
     mov si, gpt_hdr.offset + gpt_hdr.part_array_lba_offset
     ;push si
@@ -205,6 +181,8 @@ _start:
     ;add si, 4
     call print
 
+%endif
+
     mov si, strs.test
     call print
 
@@ -240,120 +218,90 @@ printl:
     ret
 %endif
 
-; Algorithm from http://www.osdever.net/tutorials/view/lba-to-chs
-; Convert the lba stored at [ds:si] to chs
-; for use with int 13h
 ; parameters:
-; al = sector count
+; bx = sector count
 ; dl = drive num
 ; [ds:si] = 8 byte lba
 ; [ds:di] = buffer
 load_sectors_lba:
-.check_lba_range:
-    push di     ; save the destination offset
-    push ax     ; save sector count
-    push si     ; preserve the first lba address
-    add si, 2   ; move on to the next word
-    mov cx, 3   ; number of words to check
-.loop:
-    lodsw       ; load the next word
-    cmp ax, 0   ; verify that it contains zeros
-    ;jne halt
-    jne load_sectors_chs.fail
-    dec cx      ; decrement the counter
-    jnz .loop   ; repeat
-
-    pop si      ; restore the location of the lba
-    lodsw       ; ax now contains the 16-bit lba
-
-.retrieve_drive_data:
-    push dx             ; save drive number
-    push ax             ; save lba
-    mov ah, disk_io.parameters_function
-    xor di, di          ; clear es:di
-    mov es, di
-    int disk_io.interrupt   ; call disk io interrupt
-
-    ;jc halt
-    jc load_sectors_chs.fail
-    pop ax              ; restore lba
-    
-.convert:
-    push dx         ; preserve number of heads
-
-    xor dx, dx
-    mov bx, cx      ; load sectors per track
-    and bx, 0x3F    ; isolate sectors per track
-    div bx
-    inc dx
-    pop bx          ; remove number of heads briefly
-    push dx         ; save sector
-    mov dx, bx      ; move number of heads back to dx
-
-    xor bx, bx
-    mov bl, dl      ; move number of heads into bx
-    xor dx, dx      ; clear dx
-    inc bl
-    div bx
-    ; ax = cylinder
-    ; dx = head
-    ; top of stack = sector
-
-    mov ch, al
-    mov cl, ah
-    shl cl, 6
-    pop ax
-    and ax, 0x3F
-    or cl, al      ; cx = cylinder + sector
-
-    mov dh, dl      ; dh = head
-    pop ax
-    mov dl, al      ; dl = drive number
-
-    pop ax          ; al = number of sectors to read
-
-    ;mov bx, ds
-    ;mov es, bx      ; set es to point to ds
-    pop bx          ; restore the destination offset
-
-    ; fall through to chs load routine
-
-; Load the given sectors
-; retrying 3 times on failure
-; parameters: same as int 13h
-load_sectors_chs:
-.init:
-    mov byte [.retry_counter], 3
-    ;mov [.cylinder_and_sector_address], cx
     push cx
-.reset_disk:
-    mov ah, disk_io.reset_function
-    int disk_io.interrupt
+    mov cl, .lba_size
+%ifdef STACK_PACKET
+    std
+    add si, .lba_size * 2 - 2
+.lba_loop:
+    lodsw
+    push ax
+    dec cl
+    jnz .lba_loop
+    
+    cld
+    
+    push ds
+    push di
+    push bx
+    ;push byte 0
+    push word .packet_size
+    
+%else
+
+    push di
+    mov di, .packet + int13_ext_packet.lba
+
+.lba_loop:
+    lodsb
+    stosb
+    dec cl
+    jnz .lba_loop
+    
+    pop di
+    
+    mov byte [.packet + int13_ext_packet.size], int13_ext_packet_size
+    mov byte [.packet + int13_ext_packet.unused], 0
+    
+    mov [.packet + int13_ext_packet.count], bx
+    
+    mov [.packet + int13_ext_packet.dest_segment], ds
+    mov [.packet + int13_ext_packet.dest_offset], di
+%endif
+    
+    mov cl, .retry_counter
+.retry:
+%ifdef STACK_PACKET
+    mov si, sp
+%else
+    mov si, .packet
+%endif
+    mov ah, 0x42
+    int 0x13
+    
     jc .fail
-.load:
-    mov ah, disk_io.load_function
-    ;mov cx, [.cylinder_and_sector_address]
+    
+%ifdef STACK_PACKET
+    add sp, .packet_size
+%endif
     pop cx
-    int disk_io.interrupt
-
-    jc .retry
-
-.exit:
     ret
 
-.retry:
-    dec byte [.retry_counter]
-    jnz .reset_disk             ; try again if this wasnt the last iteration
-
 .fail:
+    dec cl
+    jz .print_and_exit
+    jmp .retry
+    
+.print_and_exit:
     mov si, .fail_message
     call print
     jmp halt
 
-.retry_counter: db 0
-;.cylinder_and_sector_address: dw 0
+%ifdef STACK_PACKET
+.lba_size: equ 4 ; words
+%else
+.packet: db int13_ext_packet_size
+.lba_size: equ 8 ; bytes
+%endif
+.retry_counter: equ 4
+.packet_size: equ 0x0010
 .fail_message: db 'Failed to load sectors', 0x0D, 0x0A, 0
-
 
 
 ; Validate that loaded sector is a gpt header
@@ -397,17 +345,14 @@ data:
 .gpt_hdr_lba: dq 1
 %endif
 ;.gpt_array_lba: db 8
+.efi_part_lba: dq 1
 .efi_part_sig: db 'EFI PART'
 .efi_part_sig_len: equ 8
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
 .guid_len: equ 16
 .gpt_parts_per_sector: equ 4
 ;.efi_exec_name: db 'EFI.BIN'
-.efi_exec_name_len: equ 7
-;.test: dq 4099
-;.test: dq 2048
-;.test: dq 4098
-.test: dq 2
+;.efi_exec_name_len: equ 7
 
 strs:
 ;.welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
