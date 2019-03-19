@@ -2,9 +2,6 @@
     org 0x7C00
 
 ;%define DEBUG
-;%define USE_LBA
-;%define SIZE_MATTERS
-%define STACK_PACKET
 
 sector_size: equ 0x200
 target_segment: equ 0x1000
@@ -202,6 +199,9 @@ _start:
 
     jmp halt
 
+
+
+
 ; Print a '\0' terminated string
 ; parameters: si = string address
 print:
@@ -240,7 +240,7 @@ printl:
 load_sectors_lba:
     push cx
     mov cl, .lba_size
-%ifdef STACK_PACKET
+    
     std
     add si, .lba_size * 2 - 2
 .lba_loop:
@@ -257,43 +257,18 @@ load_sectors_lba:
     ;push byte 0
     push word .packet_size
     
-%else
-
-    push di
-    mov di, .packet + int13_ext_packet.lba
-
-.lba_loop:
-    lodsb
-    stosb
-    dec cl
-    jnz .lba_loop
-    
-    pop di
-    
-    mov byte [.packet + int13_ext_packet.size], int13_ext_packet_size
-    mov byte [.packet + int13_ext_packet.unused], 0
-    
-    mov [.packet + int13_ext_packet.count], bx
-    
-    mov [.packet + int13_ext_packet.dest_segment], ds
-    mov [.packet + int13_ext_packet.dest_offset], di
-%endif
-    
     mov cl, .retry_counter
 .retry:
-%ifdef STACK_PACKET
+    mov ah, disk_io.reset_function
+    int disk_io.interrupt
+
     mov si, sp
-%else
-    mov si, .packet
-%endif
-    mov ah, 0x42
-    int 0x13
+    mov ah, disk_io.ext_load_function
+    int disk_io.interrupt
     
     jc .fail
     
-%ifdef STACK_PACKET
     add sp, .packet_size
-%endif
     pop cx
     ret
 
@@ -307,12 +282,7 @@ load_sectors_lba:
     call print
     jmp halt
 
-%ifdef STACK_PACKET
 .lba_size: equ 4 ; words
-%else
-.packet: db int13_ext_packet_size
-.lba_size: equ 8 ; bytes
-%endif
 .retry_counter: equ 4
 .packet_size: equ 0x0010
 .fail_message: db 'Failed to load sectors', 0x0D, 0x0A, 0
@@ -355,9 +325,6 @@ data:
 %ifdef SIZE_MATTERS
 .sector_size: dw 512
 %endif
-%ifdef USE_LBA
-.gpt_hdr_lba: dq 1
-%endif
 ;.gpt_array_lba: db 8
 .efi_part_lba: dq 1
 .efi_part_sig: db 'EFI PART'
@@ -382,8 +349,8 @@ strs:
 disk_io:
 .interrupt: equ 0x13
 .reset_function: equ 0
-.load_function: equ 0x2
-.parameters_function: equ 0x8
+.ext_load_function: equ 0x42
+;.parameters_function: equ 0x8
 .check_extension_function: equ 0x41
 .extended_parameters_function: equ 0x48
 
