@@ -127,9 +127,8 @@ _start:
 
 .load_part_array:
     mov si, scratch.offset + data.gpt_part_array_lba_offset
-    ;push si
+    mov bx, 1
     mov dl, [data.drive_num]
-    mov al, 1
     mov di, scratch.offset
     call load_sectors_lba
 
@@ -232,11 +231,13 @@ printl:
     ret
 %endif
 
+; construct int 13h extended read
+; packet on stack and read data
 ; parameters:
 ; bx = sector count
 ; dl = drive num
 ; [ds:si] = 8 byte lba
-; [ds:di] = buffer
+; [es:di] = buffer
 load_sectors_lba:
     push cx
     mov cl, .lba_size
@@ -245,17 +246,17 @@ load_sectors_lba:
     add si, .lba_size * 2 - 2
 .lba_loop:
     lodsw
-    push ax
+    push ax ; add 2 bytes of LBA
     dec cl
     jnz .lba_loop
     
     cld
     
-    push ds
-    push di
-    push bx
+    push es ; add destination segment
+    push di ; add destination offset
+    push bx ; add number of sectors to be read
     ;push byte 0
-    push word .packet_size
+    push word .packet_size  ; add packet size
     
     mov cl, .retry_counter
 .retry:
