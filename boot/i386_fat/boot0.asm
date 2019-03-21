@@ -36,12 +36,12 @@ STRUC fat32_bpb
     .total_sectors: resw 1
     .media_descriptor: resb 1
     .sectors_per_fat: resw 1
-    
+
     .sectors_per_track: resw 1
     .heads: resw 1
     .hidden_sectors: resd 1
     .total_sectors_32: resd 1
-    
+
     .sectors_per_fat_32: resd 1
     .drive_description: resw 1
     .version: resw 1
@@ -72,14 +72,14 @@ _start:
     ; Configure segment registers to point to correct address
     cli
     cld
-    ;mov ax, cs    
+    ;mov ax, cs
     xor ax, ax
     mov ds, ax
     mov es, ax
     ; initialize stack
     mov ss, ax
     mov sp, _start
-    
+
     sti
 
     ;jmp ax:.init
@@ -123,7 +123,7 @@ _start:
     call compare_bytes
     cmp ax, 0
     jne halt
-    
+
 
 .load_part_array:
     mov si, scratch.offset + data.gpt_part_array_lba_offset
@@ -152,7 +152,7 @@ _start:
     jne .part_guid_not_zero
     dec bl
     jnz .check_part_guid_zero
-    jz halt
+    jmp halt
 
 .part_guid_not_zero:
     pop si
@@ -167,7 +167,7 @@ _start:
 .next_gpt_part:
     dec cl
     jnz .find_efi_part_loop
-    jz halt     ; halt if it is not in the first sector
+    jmp halt     ; halt if it is not in the first sector
 
 .efi_part_found:
 %ifdef DEBUG
@@ -189,7 +189,6 @@ _start:
     mov si, strs.test
     call print
 
-    ; Conversion seems to fail with larger offsets
     mov si, scratch.offset + fat32_bpb.fs_type
     call print
 
@@ -241,7 +240,7 @@ printl:
 load_sectors_lba:
     push cx
     mov cl, .lba_size
-    
+
     std
     add si, .lba_size * 2 - 2
 .lba_loop:
@@ -249,15 +248,15 @@ load_sectors_lba:
     push ax ; add 2 bytes of LBA
     dec cl
     jnz .lba_loop
-    
+
     cld
-    
+
     push es ; add destination segment
     push di ; add destination offset
     push bx ; add number of sectors to be read
     ;push byte 0
     push word .packet_size  ; add packet size
-    
+
     mov cl, .retry_counter
 .retry:
     mov ah, disk_io.reset_function
@@ -266,9 +265,9 @@ load_sectors_lba:
     mov si, sp
     mov ah, disk_io.ext_load_function
     int disk_io.interrupt
-    
+
     jc .fail
-    
+
     add sp, .packet_size
     pop cx
     ret
@@ -277,7 +276,7 @@ load_sectors_lba:
     dec cl
     jz .print_and_exit
     jmp .retry
-    
+
 .print_and_exit:
     mov si, .fail_message
     call print
