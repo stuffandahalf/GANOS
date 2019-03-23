@@ -16,13 +16,24 @@ STRUC gpt_part
     .part_name: resw 36
 ENDSTRUC
 
-STRUC int13_ext_packet
+STRUC int13_ext_read_packet
     .size: resb 1
     .unused: resb 1
     .count: resw 1
     .dest_offset: resw 1
     .dest_segment: resw 1
     .lba: resq 1
+ENDSTRUC
+
+STRUC int13_ext_param_packet
+    .size: resw 1
+    .info_flags: resw 1
+    .cylinders: resd 1
+    .heads: resd 1
+    .sectors_per_track: resd 1
+    .sectors: resq 1
+    .sector_size: resw 1
+    .edd_param_ptr: resd 1
 ENDSTRUC
 
 STRUC fat32_bpb
@@ -106,6 +117,15 @@ _start:
     int disk_io.interrupt
     jnc .load_gpt_hdr
     jmp halt
+    
+.read_drive_params:
+    ; dl should contain the drive number already
+    mov ah, disk_io.ext_param_function
+    mov si, scratch.offset
+    int disk_io.interrupt
+    
+    mov ax, [scratch.offset + int13_ext_param_packet.sector_size]
+    mov [data.sector_size], ax
 
 ; load the gpt from the second sector of the drive
 .load_gpt_hdr:
@@ -170,21 +190,39 @@ _start:
     jmp halt     ; halt if it is not in the first sector
 
 .efi_part_found:
-%ifdef DEBUG
-    push si
-    mov si, strs.found_efi
-    call print
-    pop si
-%endif
-
     sub si, data.guid_len   ; go back to address of gpt part entry
 
-.load_stage2:
+.load_boot_parameter_block:
+    ;push si
     add si, gpt_part.first_lba
     mov al, 1
     mov dl, [data.drive_num]
     mov di, scratch.offset
     call load_sectors_lba
+    
+    ;mov ax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    ;mov dx, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mul dword [scratch.offset + fat32_bpb.number_of_fats] 
+    xor ebx, ebx
+    mov ebx, dword [scratch.offset + fat32_bpb.reserved_sectors]
+    and ebx, 0x0000FFFF
+    add eax, ebx
+    sub ebx, 2
+    add eax, ebx
+    jnc .load_fat
+    inc edx
+    ; edx:eax = root_dir_lba
+    
+.load_fat:
+    
+    %if 0
+    xor ax, ax
+    mov al, [scratch.offset + fat32_bpb.number_of_fats]
+    mul word [scratch.offset + fat32_bpb.sectors_per_fat]
+    add ax, [scratch.offset + fat32_bpb.reserved_sectors]
+    %endif
+    
 
     mov si, strs.test
     call print
@@ -321,7 +359,8 @@ halt:
 
 data:
 .drive_num: db 0
-.cluster_size: db 8
+.sector_size: dw 1
+;.cluster_size: db 8
 %ifdef SIZE_MATTERS
 .sector_size: dw 512
 %endif
@@ -352,7 +391,7 @@ disk_io:
 .ext_load_function: equ 0x42
 ;.parameters_function: equ 0x8
 .check_extension_function: equ 0x41
-.extended_parameters_function: equ 0x48
+.ext_param_function: equ 0x48
 
     times 446 - ($ - $$) db 0
 
