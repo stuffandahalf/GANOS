@@ -2,8 +2,6 @@
     org 0x7C00
 
 ;%define DEBUG
-;%define USE_LBA
-;%define SIZE_MATTERS
 
 sector_size: equ 0x200
 target_segment: equ 0x1000
@@ -18,6 +16,58 @@ STRUC gpt_part
     .part_name: resw 36
 ENDSTRUC
 
+STRUC int13_ext_read_packet
+    .size: resb 1
+    .unused: resb 1
+    .count: resw 1
+    .dest_offset: resw 1
+    .dest_segment: resw 1
+    .lba: resq 1
+ENDSTRUC
+
+STRUC int13_ext_param_packet
+    .size: resw 1
+    .info_flags: resw 1
+    .cylinders: resd 1
+    .heads: resd 1
+    .sectors_per_track: resd 1
+    .sectors: resq 1
+    .sector_size: resw 1
+    .edd_param_ptr: resd 1
+ENDSTRUC
+
+STRUC fat32_bpb
+    .jmp: resb 3
+    .oem: resb 8
+    .bytes_per_sector: resw 1
+    .sectors_per_cluster: resb 1
+    .reserved_sectors: resw 1
+    .number_of_fats: resb 1
+    .max_root_dir_entries: resw 1
+    .total_sectors: resw 1
+    .media_descriptor: resb 1
+    .sectors_per_fat: resw 1
+
+    .sectors_per_track: resw 1
+    .heads: resw 1
+    .hidden_sectors: resd 1
+    .total_sectors_32: resd 1
+
+    .sectors_per_fat_32: resd 1
+    .drive_description: resw 1
+    .version: resw 1
+    .root_dir_cluster: resd 1
+    .fs_info_sector: resw 1
+    .backup_boot_sector: resw 1
+    .reserved: resb 12
+    .drive_num: resb 1
+    .general_purpse: resb 1
+    .extended_boot_sig: resb 1
+    .volume_id: resd 1
+    .volume_label: resb 11
+    .fs_type: resb 8
+ENDSTRUC
+
 ;stage2_segment: equ 0x1000
 ;stage2_offset: equ 0x0000
 stage2:
@@ -27,11 +77,6 @@ stage2:
 scratch:
 .segment: equ 0x0000
 .offset: equ 0x7E00
-
-gpt_hdr:
-.offset: equ 0x1000
-.part_array_lba_offset: equ 0x48
-.part_entry_size: equ 0x80
 
 _start:
 .setup:
@@ -43,11 +88,9 @@ _start:
     mov ds, ax
     mov es, ax
     ; initialize stack
-    ;mov ax, 0x07C0
-    ;mov ss, ax
-    ;xor sp, sp
     mov ss, ax
     mov sp, _start
+
     sti
 
     ;jmp ax:.init
@@ -56,7 +99,6 @@ _start:
     retf
 
 .init:
-
     mov [data.drive_num], dl    ; Preserve drive number of loading drive
 
     mov si, strs.welcome
@@ -68,67 +110,46 @@ _start:
     cmp al, 0xEE
     jne halt
 
-%if 0
 .check_int13_extensions:
     mov ah, disk_io.check_extension_function
-    mov bh, [boot_sig]
-    mov bl, [boot_sig + 1]
+    mov bx, [boot_sig]
+    xchg bl, bh
     int disk_io.interrupt
-
-    jc .load_gpt_hdr    ; if extensions not present, skip setting sector size
-%endif
-
-%ifdef SIZE_MATTERS
-.get_sector_size:
-    mov dl, [data.drive_num]
-    mov ah, disk_io.extended_parameters_function
-    push ds
-    mov si, target_segment
-    mov ds, si
-    mov es, si
-    xor si, si
-    int disk_io.interrupt
-    pop ds
+    jnc .load_gpt_hdr
+    jmp halt
     
-    jc halt
-
-.save_sector_size:
-    mov ax, [es:si+0x18]
+.read_drive_params:
+    ; dl should contain the drive number already
+    mov ah, disk_io.ext_param_function
+    mov si, scratch.offset
+    int disk_io.interrupt
+    
+    mov ax, [scratch.offset + int13_ext_param_packet.sector_size]
     mov [data.sector_size], ax
-%endif
 
 ; load the gpt from the second sector of the drive
 .load_gpt_hdr:
-%ifndef USE_LBA
-    mov al, 1                   ; one sector
-    mov ch, 0                   ; cylinder 0
-    mov cl, 2                   ; from sector 2
-    mov dh, 0                   ; head 0
-    mov dl, [data.drive_num]    ; restore the original drive number
-    mov bx, gpt_hdr.offset      ; then move the offset to bx
-    call load_sectors_chs
-%else
-    mov si, data.gpt_hdr_lba
-    mov al, 1
-    mov di, gpt_hdr.offset
+    mov dl, [data.drive_num]
+    mov si, data.efi_part_lba
+    mov bx, 1
+    mov di, scratch.offset
     call load_sectors_lba
-%endif
 
 .verify_gpt:
     ;call validate_gpt_hdr
-    mov di, gpt_hdr.offset
+    mov di, scratch.offset
     mov si, data.efi_part_sig
     mov cl, data.efi_part_sig_len
     call compare_bytes
     cmp ax, 0
     jne halt
 
+
 .load_part_array:
-    mov si, gpt_hdr.offset + gpt_hdr.part_array_lba_offset
-    ;push si
+    mov si, scratch.offset + data.gpt_part_array_lba_offset
+    mov bx, 1
     mov dl, [data.drive_num]
-    mov al, 1
-    mov di, gpt_hdr.offset
+    mov di, scratch.offset
     call load_sectors_lba
 
 .find_efi_part:
@@ -139,7 +160,7 @@ _start:
     sub al, cl
     mov bl, gpt_part_size
     mul bl
-    add ax, gpt_hdr.offset
+    add ax, scratch.offset
 
     mov si, ax
     push si
@@ -151,7 +172,7 @@ _start:
     jne .part_guid_not_zero
     dec bl
     jnz .check_part_guid_zero
-    jz halt
+    jmp halt
 
 .part_guid_not_zero:
     pop si
@@ -166,49 +187,56 @@ _start:
 .next_gpt_part:
     dec cl
     jnz .find_efi_part_loop
-    jz halt     ; halt if it is not in the first sector
+    jmp halt     ; halt if it is not in the first sector
 
 .efi_part_found:
-%ifdef DEBUG
-    push si
-    mov si, strs.found_efi
-    call print
-    pop si
-%endif
-
     sub si, data.guid_len   ; go back to address of gpt part entry
 
-%if 0
-    push si
-    add si, gpt_part.part_name
-    call printl
-    pop si
-%endif
-
-.load_stage2:
-    ; CORRECT THIS **********
-    ;add si, gpt_part.first_lba
-    mov si, data.test
-    ;mov si, data.test2
-    
-    ;mov al, [data.cluster_size]
+.load_boot_parameter_block:
+    ;push si
+    add si, gpt_part.first_lba
     mov al, 1
     mov dl, [data.drive_num]
     mov di, scratch.offset
     call load_sectors_lba
+    
+    ;mov ax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    ;mov dx, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mul dword [scratch.offset + fat32_bpb.number_of_fats] 
+    xor ebx, ebx
+    mov ebx, dword [scratch.offset + fat32_bpb.reserved_sectors]
+    and ebx, 0x0000FFFF
+    add eax, ebx
+    sub ebx, 2
+    add eax, ebx
+    jnc .load_fat
+    inc edx
+    ; edx:eax = root_dir_lba
+    
+.load_fat:
+    
+    %if 0
+    xor ax, ax
+    mov al, [scratch.offset + fat32_bpb.number_of_fats]
+    mul word [scratch.offset + fat32_bpb.sectors_per_fat]
+    add ax, [scratch.offset + fat32_bpb.reserved_sectors]
+    %endif
+    
 
     mov si, strs.test
     call print
 
-    ; Conversion seems to fail with larger offsets
-    mov si, scratch.offset + 56; + 3;strs.test - _start; + 0x0036
-    ;add si, 4
+    mov si, scratch.offset + fat32_bpb.fs_type
     call print
 
     mov si, strs.test
     call print
 
     jmp halt
+
+
+
 
 ; Print a '\0' terminated string
 ; parameters: si = string address
@@ -240,120 +268,62 @@ printl:
     ret
 %endif
 
-; Algorithm from http://www.osdever.net/tutorials/view/lba-to-chs
-; Convert the lba stored at [ds:si] to chs
-; for use with int 13h
+; construct int 13h extended read
+; packet on stack and read data
 ; parameters:
-; al = sector count
+; bx = sector count
 ; dl = drive num
 ; [ds:si] = 8 byte lba
-; [ds:di] = buffer
+; [es:di] = buffer
 load_sectors_lba:
-.check_lba_range:
-    push di     ; save the destination offset
-    push ax     ; save sector count
-    push si     ; preserve the first lba address
-    add si, 2   ; move on to the next word
-    mov cx, 3   ; number of words to check
-.loop:
-    lodsw       ; load the next word
-    cmp ax, 0   ; verify that it contains zeros
-    ;jne halt
-    jne load_sectors_chs.fail
-    dec cx      ; decrement the counter
-    jnz .loop   ; repeat
-
-    pop si      ; restore the location of the lba
-    lodsw       ; ax now contains the 16-bit lba
-
-.retrieve_drive_data:
-    push dx             ; save drive number
-    push ax             ; save lba
-    mov ah, disk_io.parameters_function
-    xor di, di          ; clear es:di
-    mov es, di
-    int disk_io.interrupt   ; call disk io interrupt
-
-    ;jc halt
-    jc load_sectors_chs.fail
-    pop ax              ; restore lba
-    
-.convert:
-    push dx         ; preserve number of heads
-
-    xor dx, dx
-    mov bx, cx      ; load sectors per track
-    and bx, 0x3F    ; isolate sectors per track
-    div bx
-    inc dx
-    pop bx          ; remove number of heads briefly
-    push dx         ; save sector
-    mov dx, bx      ; move number of heads back to dx
-
-    xor bx, bx
-    mov bl, dl      ; move number of heads into bx
-    xor dx, dx      ; clear dx
-    inc bl
-    div bx
-    ; ax = cylinder
-    ; dx = head
-    ; top of stack = sector
-
-    mov ch, al
-    mov cl, ah
-    shl cl, 6
-    pop ax
-    and ax, 0x3F
-    or cl, al      ; cx = cylinder + sector
-
-    mov dh, dl      ; dh = head
-    pop ax
-    mov dl, al      ; dl = drive number
-
-    pop ax          ; al = number of sectors to read
-
-    ;mov bx, ds
-    ;mov es, bx      ; set es to point to ds
-    pop bx          ; restore the destination offset
-
-    ; fall through to chs load routine
-
-; Load the given sectors
-; retrying 3 times on failure
-; parameters: same as int 13h
-load_sectors_chs:
-.init:
-    mov byte [.retry_counter], 3
-    ;mov [.cylinder_and_sector_address], cx
     push cx
-.reset_disk:
+    mov cl, .lba_size
+
+    std
+    add si, .lba_size * 2 - 2
+.lba_loop:
+    lodsw
+    push ax ; add 2 bytes of LBA
+    dec cl
+    jnz .lba_loop
+
+    cld
+
+    push es ; add destination segment
+    push di ; add destination offset
+    push bx ; add number of sectors to be read
+    ;push byte 0
+    push word .packet_size  ; add packet size
+
+    mov cl, .retry_counter
+.retry:
     mov ah, disk_io.reset_function
     int disk_io.interrupt
-    jc .fail
-.load:
-    mov ah, disk_io.load_function
-    ;mov cx, [.cylinder_and_sector_address]
-    pop cx
+
+    mov si, sp
+    mov ah, disk_io.ext_load_function
     int disk_io.interrupt
 
-    jc .retry
+    jc .fail
 
-.exit:
+    add sp, .packet_size
+    pop cx
     ret
 
-.retry:
-    dec byte [.retry_counter]
-    jnz .reset_disk             ; try again if this wasnt the last iteration
-
 .fail:
+    dec cl
+    jz .print_and_exit
+    jmp .retry
+
+.print_and_exit:
     mov si, .fail_message
     call print
     jmp halt
 
-.retry_counter: db 0
-;.cylinder_and_sector_address: dw 0
+.lba_size: equ 4 ; words
+.retry_counter: equ 4
+.packet_size: equ 0x0010
 .fail_message: db 'Failed to load sectors', 0x0D, 0x0A, 0
-
 
 
 ; Validate that loaded sector is a gpt header
@@ -389,25 +359,21 @@ halt:
 
 data:
 .drive_num: db 0
-.cluster_size: db 8
+.sector_size: dw 1
+;.cluster_size: db 8
 %ifdef SIZE_MATTERS
 .sector_size: dw 512
 %endif
-%ifdef USE_LBA
-.gpt_hdr_lba: dq 1
-%endif
 ;.gpt_array_lba: db 8
+.efi_part_lba: dq 1
 .efi_part_sig: db 'EFI PART'
 .efi_part_sig_len: equ 8
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
 .guid_len: equ 16
 .gpt_parts_per_sector: equ 4
+.gpt_part_array_lba_offset: equ 0x48
 ;.efi_exec_name: db 'EFI.BIN'
-.efi_exec_name_len: equ 7
-;.test: dq 4099
-;.test: dq 2048
-;.test: dq 4098
-.test: dq 2
+;.efi_exec_name_len: equ 7
 
 strs:
 ;.welcome: db 'Loading EFI emulator', 0x0D, 0x0A, 0
@@ -422,10 +388,10 @@ strs:
 disk_io:
 .interrupt: equ 0x13
 .reset_function: equ 0
-.load_function: equ 0x2
-.parameters_function: equ 0x8
+.ext_load_function: equ 0x42
+;.parameters_function: equ 0x8
 .check_extension_function: equ 0x41
-.extended_parameters_function: equ 0x48
+.ext_param_function: equ 0x48
 
     times 446 - ($ - $$) db 0
 
