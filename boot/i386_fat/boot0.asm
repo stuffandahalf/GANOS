@@ -253,18 +253,25 @@ _start:
     mul ebx
     ; edx:eax = fat sectors (64-bit)
     
+    mov si, sp
     call add64
+    add sp, 8
+    mov si, sp
     call add64
-    
-    cmp eax, 0x1002
-    je load_sectors_lba.print_and_exit
+    add sp, 8
     
 ; add reserved sectors
-    xor ecx, ecx
-    mov cx, [scratch.offset + fat32_bpb.reserved_sectors]
-    add eax, ecx
-    jnc .load_root_dir
-    inc edx
+    xor ebx, ebx
+    mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
+    call add64_32
+
+%if 0
+    cmp eax, 0x1002
+    jne halt
+    mov eax, (0x0E << 8) + '='
+    int 0x10
+    jmp halt
+%endif
 
 .load_root_dir:
     push edx
@@ -303,19 +310,26 @@ _start:
     jmp halt
     
 .load_file:
-    pop eax
-    pop edx
-
     push word [si + dir_entry.first_cluster_high]
     push word [si + dir_entry.first_cluster_low]
-    pop ebx
+    pop eax
+    sub eax, 2
     
-    add eax, ebx
-    jnc .load_proceed
-    inc edx
-.load_proceed:
-    cmp eax, 0x1202
+    mul dword [scratch.offset + fat32_bpb.sectors_per_cluster]
+    mov ebx, eax
+    mov ecx, edx
+
+    mov si, sp
+    call add64
+    ;add sp, 8
+
+%if 1
+    cmp eax, 0x1003
     jne halt
+    mov eax, (0x0E << 8) + '='
+    int 0x10
+    ;jmp halt
+%endif
 
 %if 0
     push edx
@@ -373,19 +387,26 @@ print:
 
 ; parameters:
 ; edx:eax 64-bit base
-; sp 64-bit operand
+; si 64-bit operand
 ; return edx:eax
 ; clobbers ebx
 add64:
-    pop ebx
-    add eax, ebx
-    jnc .add_high
-    inc edx
-.add_high:
-    pop ebx
+    mov ebx, [si]
+    call add64_32
+    mov ebx, [si + 4]
     add edx, ebx
     ret
     
+; parameters
+; edx:eax 64-bit base
+; ebx 32-bit operand
+; return edx:eax
+add64_32:
+    add eax, ebx
+    jnc .exit
+    inc edx
+.exit:
+    ret
 
 ; construct int 13h extended read
 ; packet on stack and read data
@@ -480,8 +501,6 @@ data:
 .gpt_part_array_lba_offset: equ 0x48
 .target_fname: db 'HELLO   BIN'
 .target_fname_len: equ ($ - .target_fname)
-;.efi_exec_name: db 'EFI.BIN'
-;.efi_exec_name_len: equ 7
 
 %ifdef PRINT
 strs:
