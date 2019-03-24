@@ -110,10 +110,25 @@ int main(int argc, char **argv) {
     printf("reserved sectors %d\n", bpb.reserved_sectors);
     printf("Sectors per FAT: %d\n", bpb.sectors_per_fat);
     
-    size_t root_dir_offset = (bpb.reserved_sectors + (bpb.number_of_fats * bpb.sectors_per_fat)) * bpb.bytes_per_sector
-                           + (bpb.root_dir_cluster - 2) * cluster_size;
+    printf("reserved_sectors: %d\n", bpb.reserved_sectors);
+    printf("fats * sectors per fat: 0x%X\n", bpb.number_of_fats * bpb.sectors_per_fat);
     
-    printf("offset: %lX\n", root_dir_offset);
+    printf("root dir sector: %d\n", bpb.root_dir_cluster);
+    
+    printf("correct root_dir_sector: 0x%X\n", (bpb.reserved_sectors + (bpb.number_of_fats * bpb.sectors_per_fat) + (bpb.root_dir_cluster - 2) * bpb.sectors_per_cluster));
+    
+    /*size_t root_dir_offset = (bpb.reserved_sectors + (bpb.number_of_fats * bpb.sectors_per_fat)) * bpb.bytes_per_sector
+                           + (bpb.root_dir_cluster - 2) * cluster_size;*/
+    size_t root_dir_offset = (
+            bpb.reserved_sectors
+            + (bpb.number_of_fats * bpb.sectors_per_fat)
+            + (bpb.root_dir_cluster - 2) * bpb.sectors_per_cluster
+        ) * bpb.bytes_per_sector;
+    //size_t root_dir_offset = (bpb.reserved_sectors + (bpb.root_dir_cluster * bpb.sectors_per_cluster)) * bpb.bytes_per_sector;
+    
+    printf("sector: 0x%lX\n", root_dir_offset / bpb.bytes_per_sector);
+    
+    printf("offset: 0x%lX\n", root_dir_offset);
     fseek(dev, root_dir_offset, SEEK_SET);
     uint8_t *root_cluster = malloc(sizeof(uint8_t) * cluster_size);
     if (root_cluster == NULL) {
@@ -124,7 +139,6 @@ int main(int argc, char **argv) {
     fread(root_cluster, sizeof(uint8_t), cluster_size, dev);
     
     printf("directory entry size: %lX\n", sizeof(struct dir_entry));
-    
     
     const char *target = "HELLO.BIN";
     struct dir_entry *entries = (struct dir_entry *)root_cluster;
@@ -142,6 +156,7 @@ int main(int argc, char **argv) {
             }
             printf("\n");
             printf("Size: %d\n", entries[i].file_size);
+            printf("Cluster: %d\n", (entries[i].first_cluster_high << 16) + entries[i].first_cluster_low);
         }
     }
     
