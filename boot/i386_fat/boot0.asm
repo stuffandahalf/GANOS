@@ -1,10 +1,6 @@
     [BITS 16]
     org 0x7C00
 
-;%define VERIFY
-;%define DEBUG
-;%define PRINT
-
 STRUC gpt_part
     .part_type_guid: resb 16
     .part_guid: resb 16
@@ -107,7 +103,6 @@ _start:
 .setup:
     ; Configure segment registers to point to correct address
     cli
-    ;cld
     xor ax, ax
     mov ds, ax
     mov es, ax
@@ -118,76 +113,50 @@ _start:
     sti
 
     push ax
-    push word .init
+    push word init
     retf
 
-.init:
+init:
     mov [data.drive_num], dl    ; Preserve drive number of loading drive
-    ;push dx
 
-%ifdef PRINT
-    mov si, strs.welcome
-    call print
-%endif
-
-%ifdef VERIFY
-; Verify that this is a protective mbr
-.verify_mbr:
-    mov al, [part_tbl.part1 + part_entry.type]
-    cmp al, 0xEE
-    jne halt
-%endif
-
-.check_int13_extensions:
+check_int13_extensions:
     mov ah, disk_io.check_extension_function
     mov bx, [boot_sig]
     xchg bl, bh
     int disk_io.interrupt
     ;jnc .load_gpt_hdr
-    jnc .read_drive_params
+    jnc read_drive_params
     jmp halt
     
-.read_drive_params:
+read_drive_params:
     ; dl should contain the drive number already
     ;mov dl, [data.drive_num]
     mov ah, disk_io.ext_param_function
     mov si, scratch.offset
     int disk_io.interrupt
-    jc .load_gpt_hdr
+    jc load_gpt_hdr
     
     mov ax, [scratch.offset + int13_ext_param_packet.sector_size]
     mov [data.sector_size], ax
 
 ; load the gpt from the second sector of the drive
-.load_gpt_hdr:
+load_gpt_hdr:
     ;mov dl, [data.drive_num]
     mov si, data.efi_part_lba
     mov bx, 1
     mov di, scratch.offset
     call load_sectors_lba
 
-%ifdef VERIFY
-.verify_gpt:
-    ;call validate_gpt_hdr
-    mov di, scratch.offset
-    mov si, data.efi_part_sig
-    mov cl, data.efi_part_sig_len
-    call compare_bytes
-    ;cmp ax, 0
-    test ax, ax
-    jne halt
-%endif
-
-.load_part_array:
+load_part_array:
     mov si, scratch.offset + data.gpt_part_array_lba_offset
     mov bx, 1
     ;mov dl, [data.drive_num]
     mov di, scratch.offset
     call load_sectors_lba
 
-.find_efi_part:
+find_efi_part:
     mov cl, data.gpt_parts_per_sector
-.find_efi_part_loop:
+.loop:
     xor ax, ax
     mov al, data.gpt_parts_per_sector
     sub al, cl
@@ -219,13 +188,13 @@ _start:
 
 .next_gpt_part:
     dec cl
-    jnz .find_efi_part_loop
+    jnz .loop
     jmp halt     ; halt if it is not in the first sector
 
 .efi_part_found:
     ;sub si, data.guid_len   ; go back to address of gpt part entry
 
-.load_boot_parameter_block:
+load_boot_parameter_block:
     ;add si, gpt_part.first_lba
     push dword [si + gpt_part.first_lba + 4]     ; store the starting lba of the fat partition
     push dword [si + gpt_part.first_lba]
@@ -235,7 +204,7 @@ _start:
     mov di, scratch.offset
     call load_sectors_lba
 
-.calculate_root_dir_lba:
+calculate_root_dir_lba:
     ; root dir cluster * sectors per cluster (64-bit)
     xor ebx, ebx
     mov eax, [scratch.offset + fat32_bpb.root_dir_cluster]
@@ -255,8 +224,6 @@ _start:
     
     mov si, sp
     call add64
-    ;add sp, 8
-    ;mov si, sp
     add si, 8
     call add64
     add sp, 16
@@ -266,7 +233,7 @@ _start:
     mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
     call add64_32
 
-.load_root_dir:
+load_root_dir:
     push edx
     push eax
     mov si, sp
@@ -276,15 +243,8 @@ _start:
     xor bh, bh
     add di, [data.sector_size]
     call load_sectors_lba
-    
 
-%ifdef PRINT
-    mov si, [data.sector_size]
-    add si, dir_entry.short_fname + scratch.offset
-    call print
-%endif
-
-.locate_file:
+locate_file:
     ; use bl as counter for iterating through files
     mov si, di
     mov di, data.target_fname
@@ -293,20 +253,19 @@ _start:
     add si, dir_entry.short_fname
     call compare_bytes
     test ax, ax
-    jz .load_file
+    jz load_file
     add si, dir_entry_size
     sub bl, dir_entry_size
     jnz .next_file
     jmp halt
     
-.load_file:
+load_file:
     sub si, dir_entry.short_fname   ; or push/pop si above?
     push word [si + dir_entry.first_cluster_high]
     push word [si + dir_entry.first_cluster_low]
     pop eax
     sub eax, 2
     
-    ;mul dword [scratch.offset + fat32_bpb.sectors_per_cluster]
     xor ebx, ebx
     mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
     mul ebx
@@ -316,7 +275,6 @@ _start:
     call add64
     add sp, 8
 
-%if 1
     push edx
     push eax
     ;mov si, sp ; si is still sp from above
@@ -332,41 +290,16 @@ _start:
     push word target.offset
     retf
 %endif
-%endif
 
 
 ; Disable interrupts and halt the machine
 halt:
-%ifdef PRINT
-    cld
-    mov si, strs.halted
-    call print
-%else
     ;mov ax, (0x0E << 8) + 'H'
     ;int 0x10
-%endif
     cli
     hlt
     ;int 0x18
-    
 
-%ifdef PRINT
-; Print a '\0' terminated string
-; parameters: si = string address
-print:
-    push ax
-    mov ah, 0x0E
-.loop:
-    lodsb
-    ;cmp al, 0
-    test al, al ; if al == 0
-    je .end
-    int 0x10
-    jmp .loop
-.end:
-    pop ax
-    ret
-%endif
 
 ; parameters:
 ; edx:eax 64-bit base
@@ -440,11 +373,7 @@ load_sectors_lba:
 
 .lba_size: equ 4 ; words
 .retry_counter: equ 4
-.packet_size: equ 0x0010
-%ifdef PRINT
-;.fail_message: db 'Failed to load sectors', 0x0D, 0x0A, 0
-.fail_message: db 'Err', 0x0D, 0x0A, 0
-%endif
+.packet_size: equ int13_ext_read_packet_size
 
 
 ; Validate that loaded sector is a gpt header
@@ -479,10 +408,6 @@ data:
 .drive_num: db 0
 .sector_size: dw 512
 .efi_part_lba: dq 1
-%ifdef VERIFY
-.efi_part_sig: db 'EFI PART'
-.efi_part_sig_len: equ 8
-%endif
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
 .guid_len: equ 16
 .gpt_parts_per_sector: equ 4
@@ -490,22 +415,10 @@ data:
 .target_fname: db 'HELLO   BIN'
 .target_fname_len: equ ($ - .target_fname)
 
-%ifdef PRINT
-strs:
-.welcome: db 'Loading', 0x0D, 0x0A, 0
-.test: db 'test', 0x0D, 0x0A, 0
-.halted: db 'Halted', 0
-%if 0
-.true: db 't', 0
-.false: db 'f', 0
-%endif
-%endif
-
 disk_io:
 .interrupt: equ 0x13
 .reset_function: equ 0
 .ext_load_function: equ 0x42
-;.parameters_function: equ 0x8
 .check_extension_function: equ 0x41
 .ext_param_function: equ 0x48
 

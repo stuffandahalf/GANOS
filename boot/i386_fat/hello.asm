@@ -10,7 +10,6 @@ print:
     mov ah, 0x0E
 .loop:
     lodsb
-    ;cmp al, 0
     test al, al ; if al == 0
     je .end
     int 0x10
