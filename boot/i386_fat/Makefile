@@ -13,7 +13,7 @@ endif
 #	dd if=boot0.bin of=$@ seek=0 count=1 conv=notrunc
 #	../../tools/configurator/configure -d $@ -s $(SECTOR_SIZE)
 
-boot.img: boot0.bin hello.bin
+boot.img: boot0.bin boot1.bin
 	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=262144
 	sgdisk -n 1:2048:133119 -t 1:ef00 -c 1:"EFI System Partition" $@
 	dd if=boot0.bin of=$@ bs=$(SECTOR_SIZE) seek=0 count=1 conv=notrunc
@@ -23,7 +23,7 @@ boot.img: boot0.bin hello.bin
 	mkdir -p ./image_mnt
 	sudo mkdosfs -F32 $(LD)
 	sudo mount $(LD) ./image_mnt
-	sudo cp hello.bin ./image_mnt/
+	sudo cp boot1.bin ./image_mnt/
 	sudo umount $(LD)
 	sudo losetup -d $(LD)
 	rmdir ./image_mnt
