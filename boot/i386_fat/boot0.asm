@@ -5,12 +5,6 @@
 ;%define DEBUG
 ;%define PRINT
 
-%if 0
-sector_size: equ 0x200
-target_segment: equ 0x1000
-target_offset: equ 0x0000
-%endif
-
 STRUC gpt_part
     .part_type_guid: resb 16
     .part_guid: resb 16
@@ -129,6 +123,7 @@ _start:
 
 .init:
     mov [data.drive_num], dl    ; Preserve drive number of loading drive
+    ;push dx
 
 %ifdef PRINT
     mov si, strs.welcome
@@ -148,21 +143,24 @@ _start:
     mov bx, [boot_sig]
     xchg bl, bh
     int disk_io.interrupt
-    jnc .load_gpt_hdr
+    ;jnc .load_gpt_hdr
+    jnc .read_drive_params
     jmp halt
     
 .read_drive_params:
     ; dl should contain the drive number already
+    ;mov dl, [data.drive_num]
     mov ah, disk_io.ext_param_function
     mov si, scratch.offset
     int disk_io.interrupt
+    jc .load_gpt_hdr
     
     mov ax, [scratch.offset + int13_ext_param_packet.sector_size]
     mov [data.sector_size], ax
 
 ; load the gpt from the second sector of the drive
 .load_gpt_hdr:
-    mov dl, [data.drive_num]
+    ;mov dl, [data.drive_num]
     mov si, data.efi_part_lba
     mov bx, 1
     mov di, scratch.offset
@@ -175,14 +173,15 @@ _start:
     mov si, data.efi_part_sig
     mov cl, data.efi_part_sig_len
     call compare_bytes
-    cmp ax, 0
+    ;cmp ax, 0
+    test ax, ax
     jne halt
 %endif
 
 .load_part_array:
     mov si, scratch.offset + data.gpt_part_array_lba_offset
     mov bx, 1
-    mov dl, [data.drive_num]
+    ;mov dl, [data.drive_num]
     mov di, scratch.offset
     call load_sectors_lba
 
@@ -224,14 +223,15 @@ _start:
     jmp halt     ; halt if it is not in the first sector
 
 .efi_part_found:
-    sub si, data.guid_len   ; go back to address of gpt part entry
+    ;sub si, data.guid_len   ; go back to address of gpt part entry
 
 .load_boot_parameter_block:
-    add si, gpt_part.first_lba
-    push dword [si + 4]     ; store the starting lba of the fat partition
-    push dword [si]
-    mov al, 1
-    mov dl, [data.drive_num]
+    ;add si, gpt_part.first_lba
+    push dword [si + gpt_part.first_lba + 4]     ; store the starting lba of the fat partition
+    push dword [si + gpt_part.first_lba]
+    mov si, sp
+    mov bl, 1
+    ;mov dl, [data.drive_num]
     mov di, scratch.offset
     call load_sectors_lba
 
@@ -255,23 +255,16 @@ _start:
     
     mov si, sp
     call add64
-    add sp, 8
-    mov si, sp
+    ;add sp, 8
+    ;mov si, sp
+    add si, 8
     call add64
-    add sp, 8
+    add sp, 16
     
 ; add reserved sectors
     xor ebx, ebx
     mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
     call add64_32
-
-%if 0
-    cmp eax, 0x1002
-    jne halt
-    mov eax, (0x0E << 8) + '='
-    int 0x10
-    jmp halt
-%endif
 
 .load_root_dir:
     push edx
@@ -283,6 +276,7 @@ _start:
     xor bh, bh
     add di, [data.sector_size]
     call load_sectors_lba
+    
 
 %ifdef PRINT
     mov si, [data.sector_size]
@@ -296,51 +290,42 @@ _start:
     mov di, data.target_fname
     mov cl, data.target_fname_len
 .next_file:
-    push si
-    push di
     add si, dir_entry.short_fname
     call compare_bytes
     test ax, ax
     jz .load_file
-    pop di
-    pop si
     add si, dir_entry_size
     sub bl, dir_entry_size
     jnz .next_file
     jmp halt
     
 .load_file:
+    sub si, dir_entry.short_fname   ; or push/pop si above?
     push word [si + dir_entry.first_cluster_high]
     push word [si + dir_entry.first_cluster_low]
     pop eax
     sub eax, 2
     
-    mul dword [scratch.offset + fat32_bpb.sectors_per_cluster]
-    mov ebx, eax
-    mov ecx, edx
+    ;mul dword [scratch.offset + fat32_bpb.sectors_per_cluster]
+    xor ebx, ebx
+    mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
+    mul ebx
+    ; edx:eax = relative sector of first cluster
 
     mov si, sp
     call add64
-    ;add sp, 8
+    add sp, 8
 
 %if 1
-    cmp eax, 0x1003
-    jne halt
-    mov eax, (0x0E << 8) + '='
-    int 0x10
-    ;jmp halt
-%endif
-
-%if 0
     push edx
     push eax
-    mov si, sp
+    ;mov si, sp ; si is still sp from above
     mov dl, [data.drive_num]
     mov di, target.offset
     mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
     xor bh, bh
     call load_sectors_lba
-%if 0
+%if 1
     jmp target.segment:target.offset
 %else
     push word target.segment
@@ -349,8 +334,6 @@ _start:
 %endif
 %endif
 
-    ;mov eax, (0x0E << 8) + '?'
-    ;int 0x10
 
 ; Disable interrupts and halt the machine
 halt:
@@ -451,8 +434,8 @@ load_sectors_lba:
     mov si, .fail_message
     call print
 %endif
-    mov ax, (0x0E << 8) + 'F'
-    int 0x10
+    ;mov ax, (0x0E << 8) + 'F'
+    ;int 0x10
     jmp halt
 
 .lba_size: equ 4 ; words
@@ -470,6 +453,8 @@ load_sectors_lba:
 ; ds:di = address of second set of bytes
 ; cl = number of bytes to compare
 compare_bytes:
+    push si
+    push di
 .loop:
     lodsb   ; load al with next character from required header
     cmp [di], al
@@ -481,15 +466,18 @@ compare_bytes:
 
 .success:
     xor ax, ax
-    ret
+    jmp .exit
 
 .fail:
     mov ax, 1
+.exit:
+    pop di
+    pop si
     ret
 
 data:
 .drive_num: db 0
-.sector_size: dw 1
+.sector_size: dw 512
 .efi_part_lba: dq 1
 %ifdef VERIFY
 .efi_part_sig: db 'EFI PART'
