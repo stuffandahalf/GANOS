@@ -140,10 +140,14 @@ read_drive_params:
 ; load the gpt from the second sector of the drive
 load_gpt_hdr:
     ;mov dl, [data.drive_num]
-    mov si, data.efi_part_lba
+    push dword 0
+    push dword 1
+    mov si, sp
+    ;mov si, data.efi_part_lba
     mov bx, 1
     mov di, scratch.offset
     call load_sectors_lba
+    add si, 8
 
 load_part_array:
     mov si, scratch.offset + data.gpt_part_array_lba_offset
@@ -403,7 +407,7 @@ compare_bytes:
 data:
 .drive_num: db 0
 .sector_size: dw 512
-.efi_part_lba: dq 1
+;.efi_part_lba: dq 1
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
 .guid_len: equ 16
 .gpt_parts_per_sector: equ 4
