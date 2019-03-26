@@ -251,8 +251,8 @@ locate_file:
     mov si, di
     mov di, data.target_fname
     mov cl, data.target_fname_len
-.next_file:
     add si, dir_entry.short_fname
+.next_file:
     call compare_bytes
     test ax, ax
     jz load_file
@@ -361,8 +361,7 @@ load_sectors_lba:
 
 .fail:
     dec cl
-    jz .print_and_exit
-    jmp .retry
+    jnz .retry
 
 .print_and_exit:
 %if 0
