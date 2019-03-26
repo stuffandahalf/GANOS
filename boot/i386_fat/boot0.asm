@@ -121,10 +121,8 @@ init:
 
 check_int13_extensions:
     mov ah, disk_io.check_extension_function
-    mov bx, [boot_sig]
-    xchg bl, bh
+    mov bx, 0x55AA
     int disk_io.interrupt
-    ;jnc .load_gpt_hdr
     jnc read_drive_params
     jmp halt
     
@@ -363,12 +361,10 @@ load_sectors_lba:
     jmp .retry
 
 .print_and_exit:
-%ifdef PRINT
-    mov si, .fail_message
-    call print
-%endif
+%if 0
     ;mov ax, (0x0E << 8) + 'F'
     ;int 0x10
+%endif
     jmp halt
 
 .lba_size: equ 4 ; words
