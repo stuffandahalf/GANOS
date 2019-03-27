@@ -204,28 +204,33 @@ load_boot_parameter_block:
     mov dl, [data.drive_num]
     call load_sectors_lba
     
+init_fat:
     pop eax
     pop edx
-    
-init_fat:
     xor ebx, ebx
     mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
     call add64_32
-    ; edx:eax = fat sector 0
+    mov [data.fat_lba], eax
+    mov [data.fat_lba + 4], edx
     
-    push edx
-    push eax
-    mov si, sp
+    mov si, data.fat_lba
     add di, [data.sector_size]
     mov bx, 1
     mov dl, [data.drive_num]
     call load_sectors_lba
     mov ebx, [di + 4]
     mov [data.fat_terminator], ebx
-    jmp dhalt
-    pop eax
-    pop edx
-    ;add sp, 8
+    ;jmp dhalt
+    
+    ; number of fats * sectors per fat (64-bit)
+    xor ebx, ebx
+    mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mov bl, [scratch.offset + fat32_bpb.number_of_fats]
+    mul ebx
+    call add64
+    
+    mov [data.data_lba], eax
+    mov [data.data_lba + 4], edx
 
 load_root_dir:
     ;mov ebx, [di, 
@@ -441,6 +446,7 @@ add64_32:
 .exit:
     ret
 
+%if 0
 ; edx:eax = fat sector 0
 ; ecx = cluster
 ; es:di = buffer
@@ -450,14 +456,7 @@ load_file_from_cluster:
     push edx
     push eax
     
-    ; number of fats * sectors per fat (64-bit)
-    xor ebx, ebx
-    mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
-    mov bl, [scratch.offset + fat32_bpb.number_of_fats]
-    mul ebx
-    mov si, sp
-    ; edx:eax = fat sectors (64-bit)
-    call add64
+    
     
     push edx
     push eax
@@ -515,97 +514,19 @@ load_file_from_cluster:
     ;add di, [data.sector_size]
     
     ret
+%endif
 
 ; construct int 13h extended read
 ; packet on stack and read data
 ; parameters:
-; bx = sector count
+; bx = sector count (max 127)
 ; dl = drive num
 ; [ds:si] = 8 byte lba
 ; [es:di] = buffer
 ; return di = pointer to next location
-%if 0
 load_sectors_lba:
     push si
-    push dx
-    
-    mov byte [.retry_counter], .max_retry_counter
-    mov [.sector_count], ebx
-    xor ebx, ebx
-    mov bl, 127
-    
-    mov eax, [si]
-    mov edx, [si + 4]
-    
-    cmp ebx, [.sector_count]
-    jl .load
-    mov bl, [.sector_count]
-    
-.load:
-    push edx
-    push eax
-    push es
-    push di
-    push bx
-    push word .packet_size
-    mov si, sp
-    
-.reset:
-    mov dl, [data.drive_num]
-    
-    ;push ax
-    mov ah, disk_io.reset_function
-    int disk_io.interrupt
-    ;pop ax
-    
-    mov ah, disk_io.ext_load_function
-    int disk_io.interrupt
-    
-    jc .fail
-    
-    add sp, .packet_size - 8
-    pop eax
-    pop edx
-    
-.next:
-    call add64_32    
-    mov cl, bl
-.increment_target:
-    add di, [data.sector_size]
-    dec cl
-    jnz .increment_target
-    
-    
-    sub [.sector_count], ebx
-    jz .exit
-    
-    cmp ebx, [.sector_count]
-    ;jmp dhalt
-    jl .load
-    mov ebx, [.sector_count]
-    jmp .load
-    
-.exit:
-    pop dx
-    pop si
-    ret
-
-.fail:
-    dec byte [.retry_counter]
-    jnz .reset
-    mov ax, (0x0E << 8) + 'F'
-    int 0x10
-    jmp halt
-
-.sector_count: dd 0
-.retry_counter: db 0
-.max_retry_counter: equ 4
-.packet_size: equ int13_ext_read_packet_size
-
-%else
-load_sectors_lba:
-    push si
-    push di
+    ;push di
     
 .load:
     push dword [si + 4] ; push low 4 bytes
@@ -627,7 +548,7 @@ load_sectors_lba:
     jc .fail
 
     add sp, .packet_size
-    pop di
+    ;pop di
     pop si
     ret
 
@@ -645,8 +566,6 @@ load_sectors_lba:
 .lba_size: equ 4 ; words
 .retry_counter: equ 4
 .packet_size: equ int13_ext_read_packet_size
-
-%endif
 
 
 ; Validate that loaded sector is a gpt header
@@ -680,7 +599,7 @@ compare_bytes:
 data:
 .drive_num: db 0
 .sector_size: dw 512
-;.fat_terminator: dd 0
+.fat_terminator: dd 0
 .fat_lba: dq 0
 .data_lba: dq 0
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
