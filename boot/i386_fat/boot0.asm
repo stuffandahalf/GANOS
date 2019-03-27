@@ -198,15 +198,67 @@ find_efi_part:
 
 load_boot_parameter_block:
     ;add si, gpt_part.first_lba
+    ;push si
+    
     push dword [si + gpt_part.first_lba + 4]     ; store the starting lba of the fat partition
     push dword [si + gpt_part.first_lba]
     mov si, sp
-    mov bl, 1
+    mov bx, 1
     ;mov dl, [data.drive_num]
     mov di, scratch.offset
     call load_sectors_lba
+    ;add sp, 8
+    
+load_fat:
+    pop eax
+    pop edx
+    xor ebx, ebx
+    mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
+    call add64_32
 
-calculate_root_dir_lba:
+    push edx
+    push eax
+    mov ebx, [di + fat32_bpb.sectors_per_fat_32]    ; too big to load at once in qemu
+    ;mov bx, 127
+    add di, [data.sector_size]
+    mov dl, [data.drive_num]
+    ;jmp halt
+    call load_sectors_lba
+    add sp, 8
+    
+    mov eax, [di + 4]
+    jmp halt
+    mov [data.fat_terminator], eax
+    
+    mov si, di  ; si points to fat table
+    add di, bx  ; di points to free memory
+    add di, bx
+    
+%if 0
+calculate_data_lba:
+    xor ebx, ebx
+    mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mov bl, [scratch.offset + fat32_bpb.number_of_fats]
+    mul ebx
+    ; edx:eax = fat sectors (64-bit)
+    
+    xor ebx, ebx
+    mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
+    call add64_32
+    mov eax, [data.data_lba]
+    
+load_root_dir:
+    mov eax, [scratch.offset + fat32_bpb.root_dir_cluster]
+    call load_from_cluster
+    
+find_boot_file:
+    ;mov ax, (0x0E << 8) + '?'
+    ;int 0x10
+%endif
+    
+
+%if 0
+calculate_cluster_zero_lba:
     ; root dir cluster * sectors per cluster (64-bit)
     xor ebx, ebx
     mov eax, [scratch.offset + fat32_bpb.root_dir_cluster]
@@ -292,6 +344,7 @@ load_file:
     push word target.offset
     retf
 %endif
+%endif
 
 
 ; Disable interrupts and halt the machine
@@ -315,6 +368,24 @@ add64:
     add edx, ebx
     ret
     
+%if 0
+; parameters
+; si address of 8 byte number
+; ebx operand
+; puts result in si
+add64_32_si:
+    push edx
+    push eax
+    mov edx, [si]
+    mov eax, [si + 4]
+    call add64_32
+    mov [si], edx
+    mov [si + 4], eax
+    pop eax
+    pop edx
+    ret
+%endif
+    
 ; parameters
 ; edx:eax 64-bit base
 ; ebx 32-bit operand
@@ -326,16 +397,140 @@ add64_32:
 .exit:
     ret
 
+%if 0
+; eax = cluster
+; dl = drive_num
+; es:di = buffer
+load_from_cluster:
+    push eax
+    xor ebx, ebx
+    mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
+    mul ebx
+    
+    mov si, data.data_lba
+    push ebx
+    call add64
+    pop ebx
+    
+    push edx
+    push eax
+    mov si, sp
+    call load_sectors_lba
+    add sp, 8
+    add di, [data.sector_size]
+    
+    pop eax
+    xor ecx, ecx
+    mov cx, [scratch.offset]
+    add cx, [data.sector_size]
+    
+    mov eax, [ecx + 4 * eax]
+    
+
+    ret
+%endif
+
 ; construct int 13h extended read
 ; packet on stack and read data
 ; parameters:
-; bx = sector count
+; ebx = sector count
 ; dl = drive num
 ; [ds:si] = 8 byte lba
 ; [es:di] = buffer
+%if 0
 load_sectors_lba:
-    ;push cx
+    jmp halt
 
+    push ecx
+    push dword [si + 4]
+    push dword [si]
+    push si
+    push di
+    
+    xor ecx, ecx
+    mov cl, 127
+    
+.setup:
+    cmp ebx, ecx
+    jg .reset
+    
+    mov cl, bl
+    mov byte [.retry_counter], .max_retry_counter
+
+.reset:
+    push ax
+    mov ah, disk_io.reset_function
+    int disk_io.interrupt
+    pop ax
+
+.load:
+    push dword [si + 4]
+    push dword [si]
+    push es
+    push di
+    push cx
+    push word .packet_size
+    
+    mov si, sp
+    mov ah, disk_io.ext_load_function
+    int disk_io.interrupt
+    
+    ;mov ax, (0x0E << 8) + '?'
+    ;int 0x10
+    ;jmp halt
+    
+    jc .retry
+    
+    sub ebx, ecx
+    jnz .next
+    
+.exit:
+    pop di
+    pop si
+    pop dword [si]
+    pop dword [si + 4]
+    pop ecx
+    ret
+    
+.retry:
+    dec byte [.retry_counter]
+    jnz .reset
+    jmp halt
+    
+.next:
+    push eax
+    push edx
+    push ebx
+    mov ebx, ecx
+    mov eax, [si]
+    mov edx, [si + 4]
+    call add64_32
+    mov [si + 4], edx
+    mov [si], eax
+    
+.add_lba:
+    add di, [data.sector_size]
+    dec ebx
+    jnz .add_lba
+    
+    pop ebx
+    pop edx
+    pop eax
+    
+    cmp ebx, ecx
+    jl .reset
+    
+    
+.retry_counter: db 0
+.max_retry_counter: equ 4
+.packet_size: equ int13_ext_read_packet_size
+
+%else
+load_sectors_lba:
+    push si
+    push di
+    
+.load:
     push dword [si + 4] ; push low 4 bytes
     push dword [si]     ; push high 4 bytes
 
@@ -356,7 +551,8 @@ load_sectors_lba:
     jc .fail
 
     add sp, .packet_size
-    ;pop cx
+    pop di
+    pop si
     ret
 
 .fail:
@@ -373,6 +569,8 @@ load_sectors_lba:
 .lba_size: equ 4 ; words
 .retry_counter: equ 4
 .packet_size: equ int13_ext_read_packet_size
+
+%endif
 
 
 ; Validate that loaded sector is a gpt header
@@ -406,6 +604,8 @@ compare_bytes:
 data:
 .drive_num: db 0
 .sector_size: dw 512
+.fat_terminator: dd 0
+.data_lba: dq 0
 ;.efi_part_lba: dq 1
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
 .guid_len: equ 16
