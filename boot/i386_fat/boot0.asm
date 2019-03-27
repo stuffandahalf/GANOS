@@ -123,8 +123,7 @@ check_int13_extensions:
     mov ah, disk_io.check_extension_function
     mov bx, 0x55AA
     int disk_io.interrupt
-    jnc read_drive_params
-    jmp halt
+    jc halt
     
 read_drive_params:
     ; dl should contain the drive number already
@@ -139,21 +138,20 @@ read_drive_params:
 
 ; load the gpt from the second sector of the drive
 load_gpt_hdr:
-    ;mov dl, [data.drive_num]
-    push dword 0
-    push dword 1
-    mov si, sp
     ;mov si, data.efi_part_lba
     mov bx, 1
     mov di, scratch.offset
+    
+    ;mov dl, [data.drive_num]
+    push dword 0    ; lba 1
+    push dword 1
+    mov si, sp
     call load_sectors_lba
-    add si, 8
+    add sp, 8
 
 load_part_array:
     mov si, scratch.offset + data.gpt_part_array_lba_offset
-    mov bx, 1
-    ;mov dl, [data.drive_num]
-    mov di, scratch.offset
+    mov bx, 1   ; should change this to 31?
     call load_sectors_lba
 
 find_efi_part:
@@ -197,42 +195,104 @@ find_efi_part:
     ;sub si, data.guid_len   ; go back to address of gpt part entry
 
 load_boot_parameter_block:
-    ;add si, gpt_part.first_lba
-    ;push si
+    mov di, scratch.offset
     
     push dword [si + gpt_part.first_lba + 4]     ; store the starting lba of the fat partition
     push dword [si + gpt_part.first_lba]
     mov si, sp
     mov bx, 1
-    ;mov dl, [data.drive_num]
-    mov di, scratch.offset
+    mov dl, [data.drive_num]
     call load_sectors_lba
-    ;add sp, 8
     
+    pop eax
+    pop edx
+    
+init_fat:
+    xor ebx, ebx
+    mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
+    call add64_32
+    ; edx:eax = fat sector 0
+    
+    push edx
+    push eax
+    mov si, sp
+    add di, [data.sector_size]
+    mov bx, 1
+    mov dl, [data.drive_num]
+    call load_sectors_lba
+    mov ebx, [di + 4]
+    mov [data.fat_terminator], ebx
+    jmp dhalt
+    pop eax
+    pop edx
+    ;add sp, 8
+
+load_root_dir:
+    ;mov ebx, [di, 
+    
+    jmp halt
+  
+%if 0
 load_fat:
+    xor ebx, ebx
+    mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
+    call add64_32
+    push di
+    
+    push edx
+    push eax
+    mov si, sp
+    mov ebx, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mov dl, [data.drive_num]
+    ;jmp dhalt
+    call load_sectors_lba
+    add sp, 8
+    pop si
+    
+    mov ebx, [si + 4]
+    cmp ebx, 0x0fffffff
+    jne halt
+    mov ax, (0x0E << 8) + 'T'
+    int 0x10
+    
+    jmp dhalt
+%endif
+
+%if 0
     pop eax
     pop edx
     xor ebx, ebx
     mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
     call add64_32
+    
+    ; edx:eax = fat sector 0
+
+    pop di
+    push di
 
     push edx
     push eax
+    mov si, sp
     mov ebx, [di + fat32_bpb.sectors_per_fat_32]    ; too big to load at once in qemu
+    jmp dhalt
     ;mov bx, 127
-    add di, [data.sector_size]
+    ;add di, [data.sector_size]
     mov dl, [data.drive_num]
     ;jmp halt
     call load_sectors_lba
     add sp, 8
+    pop di
     
+    ;pop di
     mov eax, [di + 4]
-    jmp halt
+    jmp dhalt
     mov [data.fat_terminator], eax
     
-    mov si, di  ; si points to fat table
-    add di, bx  ; di points to free memory
-    add di, bx
+    pop si
+    ;mov si, di  ; si points to fat table
+    ;add di, bx  ; di points to free memory
+    ;add di, bx
+%endif
     
 %if 0
 calculate_data_lba:
@@ -286,6 +346,7 @@ calculate_cluster_zero_lba:
     xor ebx, ebx
     mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
     call add64_32
+    ;edx:eax = fat sector 0
 
 load_root_dir:
     push edx
@@ -351,6 +412,7 @@ load_file:
 halt:
     mov ax, (0x0E << 8) + 'H'
     int 0x10
+dhalt:
     cli
     hlt
     ;int 0x18
@@ -368,24 +430,6 @@ add64:
     add edx, ebx
     ret
     
-%if 0
-; parameters
-; si address of 8 byte number
-; ebx operand
-; puts result in si
-add64_32_si:
-    push edx
-    push eax
-    mov edx, [si]
-    mov eax, [si + 4]
-    call add64_32
-    mov [si], edx
-    mov [si + 4], eax
-    pop eax
-    pop edx
-    ret
-%endif
-    
 ; parameters
 ; edx:eax 64-bit base
 ; ebx 32-bit operand
@@ -397,129 +441,163 @@ add64_32:
 .exit:
     ret
 
-%if 0
-; eax = cluster
-; dl = drive_num
+; edx:eax = fat sector 0
+; ecx = cluster
 ; es:di = buffer
-load_from_cluster:
+; es:si = scratch
+load_file_from_cluster:
+    push si
+    push edx
     push eax
+    
+    ; number of fats * sectors per fat (64-bit)
+    xor ebx, ebx
+    mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+    mov bl, [scratch.offset + fat32_bpb.number_of_fats]
+    mul ebx
+    mov si, sp
+    ; edx:eax = fat sectors (64-bit)
+    call add64
+    
+    push edx
+    push eax
+    
+    mov eax, ecx
+    sub eax, 2
     xor ebx, ebx
     mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
     mul ebx
+    mov si, sp
+    jmp dhalt
     
-    mov si, data.data_lba
-    push ebx
     call add64
-    pop ebx
     
     push edx
     push eax
     mov si, sp
+    mov bx, 1
+    mov dx, [data.drive_num]
     call load_sectors_lba
-    add sp, 8
-    add di, [data.sector_size]
+    add sp, 16
     
+    xor eax, eax
+    xor ebx, ebx
+    mov ax, [data.sector_size]
+    mov dx, 4
+    div dx
+    ;div word 4
+    xchg eax, ecx
+    div ecx
+    ; eax = page / sector offset
+    ; edx = offset / index
+    
+    mov ebx, eax
     pop eax
-    xor ecx, ecx
-    mov cx, [scratch.offset]
-    add cx, [data.sector_size]
+    pop edx
+    call add64_32
     
-    mov eax, [ecx + 4 * eax]
+    push di
+    push ebx
+    push edx
+    push eax
+    mov di, si
+    mov si, sp
+    mov dx, [data.drive_num]
+    mov bx, 1
+    call load_sectors_lba
+    pop eax
+    pop edx
+    pop ebx
+    pop di
     
-
+    ;mov eax, [si + bx]
+    ;cmp eax, [data.fat_terminator]
+    ;add di, [data.sector_size]
+    
     ret
-%endif
 
 ; construct int 13h extended read
 ; packet on stack and read data
 ; parameters:
-; ebx = sector count
+; bx = sector count
 ; dl = drive num
 ; [ds:si] = 8 byte lba
 ; [es:di] = buffer
 ; return di = pointer to next location
-%if 1
+%if 0
 load_sectors_lba:
-    push ecx
-    push dword [si + 4]
-    push dword [si]
     push si
-    ;push di
+    push dx
     
-    xor ecx, ecx
-    mov cl, 127
-    
-.setup:
-    cmp ebx, ecx
-    jg .reset
-    
-    mov cl, bl
     mov byte [.retry_counter], .max_retry_counter
-
-.reset:
-    push ax
-    mov ah, disk_io.reset_function
-    int disk_io.interrupt
-    pop ax
-
+    mov [.sector_count], ebx
+    xor ebx, ebx
+    mov bl, 127
+    
+    mov eax, [si]
+    mov edx, [si + 4]
+    
+    cmp ebx, [.sector_count]
+    jl .load
+    mov bl, [.sector_count]
+    
 .load:
-    push dword [si + 4]
-    push dword [si]
+    push edx
+    push eax
     push es
     push di
-    push cx
+    push bx
     push word .packet_size
-    
     mov si, sp
+    
+.reset:
+    mov dl, [data.drive_num]
+    
+    ;push ax
+    mov ah, disk_io.reset_function
+    int disk_io.interrupt
+    ;pop ax
+    
     mov ah, disk_io.ext_load_function
     int disk_io.interrupt
     
-    ;mov ax, (0x0E << 8) + '?'
-    ;int 0x10
-    ;jmp halt
+    jc .fail
     
-    jc .retry
-    
-    sub ebx, ecx
-    jnz .next
-    
-.exit:
-    ;pop di
-    pop si
-    pop dword [si]
-    pop dword [si + 4]
-    pop ecx
-    ret
-    
-.retry:
-    dec byte [.retry_counter]
-    jnz .reset
-    jmp halt
+    add sp, .packet_size - 8
+    pop eax
+    pop edx
     
 .next:
-    push eax
-    push edx
-    push ebx
-    mov ebx, ecx
-    mov eax, [si]
-    mov edx, [si + 4]
-    call add64_32
-    mov [si + 4], edx
-    mov [si], eax
-    
-.add_lba:
+    call add64_32    
+    mov cl, bl
+.increment_target:
     add di, [data.sector_size]
-    dec ebx
-    jnz .add_lba
-    
-    pop ebx
-    pop edx
-    pop eax
-    
-    cmp ebx, ecx
-    jl .reset
+    dec cl
+    jnz .increment_target
     
     
+    sub [.sector_count], ebx
+    jz .exit
+    
+    cmp ebx, [.sector_count]
+    ;jmp dhalt
+    jl .load
+    mov ebx, [.sector_count]
+    jmp .load
+    
+.exit:
+    pop dx
+    pop si
+    ret
+
+.fail:
+    dec byte [.retry_counter]
+    jnz .reset
+    mov ax, (0x0E << 8) + 'F'
+    int 0x10
+    jmp halt
+
+.sector_count: dd 0
 .retry_counter: db 0
 .max_retry_counter: equ 4
 .packet_size: equ int13_ext_read_packet_size
@@ -532,10 +610,9 @@ load_sectors_lba:
 .load:
     push dword [si + 4] ; push low 4 bytes
     push dword [si]     ; push high 4 bytes
-
-    push es ; add destination segment
-    push di ; add destination offset
-    push bx ; add number of sectors to be read
+    push es             ; add destination segment
+    push di             ; add destination offset
+    push bx             ; add number of sectors to be read
     push word .packet_size  ; add packet size
 
     mov cl, .retry_counter
@@ -603,9 +680,9 @@ compare_bytes:
 data:
 .drive_num: db 0
 .sector_size: dw 512
-.fat_terminator: dd 0
+;.fat_terminator: dd 0
+.fat_lba: dq 0
 .data_lba: dq 0
-;.efi_part_lba: dq 1
 .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
 .guid_len: equ 16
 .gpt_parts_per_sector: equ 4
