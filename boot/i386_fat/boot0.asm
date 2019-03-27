@@ -437,15 +437,14 @@ load_from_cluster:
 ; dl = drive num
 ; [ds:si] = 8 byte lba
 ; [es:di] = buffer
-%if 0
+; return di = pointer to next location
+%if 1
 load_sectors_lba:
-    jmp halt
-
     push ecx
     push dword [si + 4]
     push dword [si]
     push si
-    push di
+    ;push di
     
     xor ecx, ecx
     mov cl, 127
@@ -485,7 +484,7 @@ load_sectors_lba:
     jnz .next
     
 .exit:
-    pop di
+    ;pop di
     pop si
     pop dword [si]
     pop dword [si + 4]
