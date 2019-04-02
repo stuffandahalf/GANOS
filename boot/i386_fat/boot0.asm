@@ -176,9 +176,10 @@ init_fat:
     pop edx
     ; edx:eax = efi system part lba
     
-    xor ebx, ebx
+    ;xor ebx, ebx
     ;mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
-    mov bx, [di + fat32_bpb.reserved_sectors]
+    ;mov bx, [di + fat32_bpb.reserved_sectors]
+    movzx ebx, word [di + fat32_bpb.reserved_sectors]
     call add64_32
     ; edx:eax = fat lba
     
@@ -193,9 +194,8 @@ init_fat:
     
     ; number of fats * sectors per fat (64-bit)
     xor edx, edx
-    xor ebx, ebx
     mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
-    mov bl, [scratch.offset + fat32_bpb.number_of_fats]
+    movzx ebx, byte [scratch.offset + fat32_bpb.number_of_fats]
     mul ebx
     call add64
     
@@ -206,13 +206,31 @@ load_root_dir:
     mov eax, [scratch.offset + fat32_bpb.root_dir_cluster]
     call load_file_from_cluster
     
+
+%if 0
 locate_file:
+    mov si, data.target_fname
+    add di, dir_entry.short_fname
+    mov cl, data.target_fname_len
+.next_file:
+    call compare_bytes
+    jnc load_file
+    add di, dir_entry.short_fname
+    sub bl, dir_entry_size
+    add di, dir_entry_size
+    jnz .next_file
+    jmp halt
+%endif
     
-%if 1
-    ;mov ah, 0x0E
-    mov bl, [di]
-    ;int 0x10
-    jmp dhalt
+load_file:
+    mov ax, (0x0E << 8) + '?'
+    int 0x10
+    
+%if 0
+    mov ah, 0x0E
+    mov al, [di]
+    int 0x10
+    ;jmp dhalt
 %endif
 
 %if 0
@@ -237,8 +255,9 @@ load_file:
     pop eax
     sub eax, 2
     
-    xor ebx, ebx
-    mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
+    ;xor ebx, ebx
+    ;mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
+    movzx ebx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
     mul ebx
     ; edx:eax = relative sector of first cluster
 
@@ -251,8 +270,9 @@ load_file:
     ;mov si, sp ; si is still sp from above
     mov dl, [data.drive_num]
     mov di, target.offset
-    mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
-    xor bh, bh
+    ;mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
+    ;xor bh, bh
+    movzx bx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
     call load_sectors_lba
 %if 1
     jmp target.segment:target.offset
@@ -280,10 +300,12 @@ dhalt:
 ; return edx:eax
 ; clobbers ebx
 add64:
+    push ebx
     mov ebx, [si]
     call add64_32
     mov ebx, [si + 4]
     add edx, ebx
+    pop ebx
     ret
     
 ; parameters
@@ -310,34 +332,24 @@ load_file_from_cluster:
     push di
     
 .loop:
-    
-    
-%if 0
-.loop:
     push eax
     sub eax, 2
-    xor ebx, ebx
-    mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
+    movzx ebx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
     mul ebx
     ; edx:eax = relative sector
     
     push si
     mov si, data.data_lba
     call add64
-    ; absolute data lba
-    
-    mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
-    ; di = dest
-    call load_sectors_lba_reg
-    ;inc ecx
+    ; edx:eax = absolute cluster lba
     pop si
+    ;movzx bx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
+    ; ebx still sectors per cluster
+    call load_sectors_lba_reg
     
-    xor eax, eax
-    mov ax, [data.sector_size]
-    add di, ax
-    shr ax, 2
+    movzx eax, word [data.sector_size]
+    shr ax, 2   ; ax = (ax / sizeof(entry)) = ax / 4 = ax >> 2
     ; ax = entries per sector
-    ; di = next destination
     
     xor edx, edx
     pop ebx
@@ -347,24 +359,26 @@ load_file_from_cluster:
     ; edx = offset / index
     
     push di
-    push dx
+    push edx
     xor edx, edx
     mov di, si
     mov si, data.fat_lba
     call add64
+    
     mov bx, 1
     call load_sectors_lba_reg
-    
-    pop dx
-    shl dx, 2
-    mov eax, [edi + edx]
+
+    ;xor edx, edx
+    pop eax
+    shl eax, 2  ; index * sizeof(entry)
+    mov eax, [edi + eax]
     pop di
+    
     cmp eax, data.fat_terminator
     jae .exit
     add di, [data.sector_size]
     jmp .loop
     
-%endif
 .exit:
     pop di
     ret
