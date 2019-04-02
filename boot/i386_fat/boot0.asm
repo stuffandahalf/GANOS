@@ -126,7 +126,6 @@ check_int13_extensions:
     jc halt
     
 read_drive_params:
-    ; dl should contain the drive number already
     mov ah, disk_io.ext_param_function
     mov si, scratch.offset
     int disk_io.interrupt
@@ -139,9 +138,9 @@ read_drive_params:
 load_gpt_hdr:
     mov bx, 1
     mov di, scratch.offset
+    push di
     xor edx, edx
-    xor eax, eax
-    inc eax     ; edx:eax = 1
+    movzx eax, bl   ; edx:eax = 1
     call load_sectors_lba_reg
 
 load_part_array:
@@ -153,32 +152,36 @@ find_efi_part:
     mov cl, data.gpt_parts_per_sector
     mov si, di
     mov di, data.efi_sys_part_guid
-.loop:
+.next:
     mov cl, data.guid_len
     call compare_bytes
     jnc load_boot_parameter_block
     dec cl
     jz halt
     add si, gpt_part_size
-    jmp .loop
+    jmp .next
     
 load_boot_parameter_block:
-    mov di, scratch.offset
+    pop di  ;mov di, scratch.offset
     add si, gpt_part.first_lba
-    push dword [si + 4]
-    push dword [si]
+    push dword [si + 4] ; ?
+    push dword [si]     ; ?
     mov bx, 1
-    mov dl, [data.drive_num]
     call load_sectors_lba
     
 init_fat:
     pop eax
     pop edx
-    ; edx:eax = efi system part lba
     
-    ;xor ebx, ebx
-    ;mov bx, [scratch.offset + fat32_bpb.reserved_sectors]
-    ;mov bx, [di + fat32_bpb.reserved_sectors]
+    ;lodsd
+    ;mov edx, eax
+    ;lodsd
+    ;xchg eax, edx
+    
+    ;mov eax, [si]
+    ;mov edx, [si + 4]
+    ; edx:eax = efi system part lba
+
     movzx ebx, word [di + fat32_bpb.reserved_sectors]
     call add64_32
     ; edx:eax = fat lba
@@ -204,16 +207,16 @@ init_fat:
     
 load_root_dir:
     mov eax, [scratch.offset + fat32_bpb.root_dir_cluster]
-    call load_file_from_cluster
+    call load_file_from_cluster_buffer
     
 
-%if 0
 locate_file:
     mov si, data.target_fname
     add di, dir_entry.short_fname
     mov cl, data.target_fname_len
 .next_file:
     call compare_bytes
+%if 0
     jnc load_file
     add di, dir_entry.short_fname
     sub bl, dir_entry_size
@@ -268,7 +271,6 @@ load_file:
     push edx
     push eax
     ;mov si, sp ; si is still sp from above
-    mov dl, [data.drive_num]
     mov di, target.offset
     ;mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
     ;xor bh, bh
@@ -298,7 +300,6 @@ dhalt:
 ; edx:eax 64-bit base
 ; si 64-bit operand
 ; return edx:eax
-; clobbers ebx
 add64:
     push ebx
     mov ebx, [si]
@@ -323,12 +324,12 @@ add64_32:
 ; es:di = scratch (1xsector) + buffer (sectors_per_cluster)
 ; returns ecx = sectors read
 ;         di = file
-load_file_from_cluster:
-    ;push si
-    ;push di
-    ;xor ecx, ecx
+load_file_from_cluster_buffer:
+    mov cx, [data.sector_size]
     mov si, di                  ; si = scratch buffer
-    add di, [data.sector_size]  ; di = destination
+    ;add di, [data.sector_size]  ; di = destination
+    add di, cx
+load_file_from_cluster:
     push di
     
 .loop:
@@ -347,7 +348,8 @@ load_file_from_cluster:
     ; ebx still sectors per cluster
     call load_sectors_lba_reg
     
-    movzx eax, word [data.sector_size]
+    ;movzx eax, word [data.sector_size]
+    movzx eax, cx
     shr ax, 2   ; ax = (ax / sizeof(entry)) = ax / 4 = ax >> 2
     ; ax = entries per sector
     
@@ -368,7 +370,6 @@ load_file_from_cluster:
     mov bx, 1
     call load_sectors_lba_reg
 
-    ;xor edx, edx
     pop eax
     shl eax, 2  ; index * sizeof(entry)
     mov eax, [edi + eax]
@@ -376,7 +377,8 @@ load_file_from_cluster:
     
     cmp eax, data.fat_terminator
     jae .exit
-    add di, [data.sector_size]
+    ;add di, [data.sector_size]
+    add di, cx
     jmp .loop
     
 .exit:
@@ -414,13 +416,13 @@ load_sectors_lba:
     push bx             ; add number of sectors to be read
     push word .packet_size  ; add packet size
 
+    mov si, sp
     mov cl, .retry_counter
 .retry:
     mov dl, [data.drive_num]
     mov ah, disk_io.reset_function
     int disk_io.interrupt
 
-    mov si, sp  ; move this?
     mov ah, disk_io.ext_load_function
     int disk_io.interrupt
 
