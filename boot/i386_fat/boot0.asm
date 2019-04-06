@@ -138,10 +138,10 @@ read_drive_params:
 
 ; load the gpt from the second sector of the drive
 load_gpt_hdr:
-    mov bx, 1
     mov di, scratch.offset
     push di
     xor edx, edx
+    mov bx, 1
     movzx eax, bl   ; edx:eax = 1
     call load_sectors_lba_reg
 
@@ -166,27 +166,12 @@ find_efi_part:
 load_boot_parameter_block:
     pop di  ;mov di, scratch.offset
     add si, gpt_part.first_lba
-    ;push dword [si + 4] ; ?
-    ;push dword [si]     ; ?
     mov edx, [si + 4]
     mov eax, [si]
     mov bx, 1
     call load_sectors_lba_reg
-    ;jmp halt
     
 init_fat:
-    ;pop eax
-    ;pop edx
-    
-    ;lodsd
-    ;mov edx, eax
-    ;lodsd
-    ;xchg eax, edx
-    
-    ;mov eax, [si]
-    ;mov edx, [si + 4]
-    ; edx:eax = efi system part lba
-
     movzx ebx, word [di + fat32_bpb.reserved_sectors]
     call add64_32
     ; edx:eax = fat lba
@@ -233,71 +218,11 @@ load_file:
     push word [di + dir_entry.first_cluster_high - dir_entry.short_fname]
     push word [di + dir_entry.first_cluster_low - dir_entry.short_fname]
     pop eax
-    ;mov si, 
     pop si
     mov di, target.offset
     call load_file_from_cluster
     
     jmp target.segment:target.offset
-    
-%if 0
-    mov ah, 0x0E
-    mov al, [di]
-    int 0x10
-    ;jmp dhalt
-%endif
-
-%if 0
-locate_file:
-    ; use bl as counter for iterating through files
-    mov si, di
-    mov di, data.target_fname
-    mov cl, data.target_fname_len
-    add si, dir_entry.short_fname
-.next_file:
-    call compare_bytes
-    jnc load_file
-    add si, dir_entry_size
-    sub bl, dir_entry_size
-    jnz .next_file
-    ;jmp halt
-    ;cli
-    hlt
-    
-load_file:
-    sub si, dir_entry.short_fname   ; or push/pop si above?
-    push word [si + dir_entry.first_cluster_high]
-    push word [si + dir_entry.first_cluster_low]
-    pop eax
-    sub eax, 2
-    
-    ;xor ebx, ebx
-    ;mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
-    movzx ebx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
-    mul ebx
-    ; edx:eax = relative sector of first cluster
-
-    mov si, sp
-    call add64
-    add sp, 8
-
-    push edx
-    push eax
-    ;mov si, sp ; si is still sp from above
-    mov di, target.offset
-    ;mov bl, [scratch.offset + fat32_bpb.sectors_per_cluster]
-    ;xor bh, bh
-    movzx bx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
-    call load_sectors_lba
-%if 1
-    jmp target.segment:target.offset
-%else
-    push word target.segment
-    push word target.offset
-    retf
-%endif
-%endif
-
 
 ; Disable interrupts and halt the machine
 halt:
