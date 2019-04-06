@@ -123,7 +123,9 @@ check_int13_extensions:
     mov ah, disk_io.check_extension_function
     mov bx, 0x55AA
     int disk_io.interrupt
-    jc halt
+    ;jc halt
+    cli
+    hlt
     
 read_drive_params:
     mov ah, disk_io.ext_param_function
@@ -216,18 +218,22 @@ locate_file:
     mov cl, data.target_fname_len
 .next_file:
     call compare_bytes
-%if 0
     jnc load_file
-    add di, dir_entry.short_fname
-    sub bl, dir_entry_size
     add di, dir_entry_size
+    test byte [di], 0
     jnz .next_file
-    jmp halt
-%endif
+    ;jmp halt
+    cli
+    hlt
     
 load_file:
-    mov ax, (0x0E << 8) + '?'
-    int 0x10
+    push word [di + dir_entry.first_cluster_high - dir_entry.short_fname]
+    push word [di + dir_entry.first_cluster_low - dir_entry.short_fname]
+    pop eax
+    mov di, target.offset
+    call load_file_from_cluster_buffer
+    
+    jmp target.segment:target.offset
     
 %if 0
     mov ah, 0x0E
@@ -249,7 +255,9 @@ locate_file:
     add si, dir_entry_size
     sub bl, dir_entry_size
     jnz .next_file
-    jmp halt
+    ;jmp halt
+    cli
+    hlt
     
 load_file:
     sub si, dir_entry.short_fname   ; or push/pop si above?
@@ -301,12 +309,8 @@ dhalt:
 ; si 64-bit operand
 ; return edx:eax
 add64:
-    push ebx
-    mov ebx, [si]
-    call add64_32
-    mov ebx, [si + 4]
-    add edx, ebx
-    pop ebx
+    add eax, [si]
+    adc edx, [si + 4]
     ret
     
 ; parameters
@@ -420,8 +424,10 @@ load_sectors_lba:
     mov cl, .retry_counter
 .retry:
     mov dl, [data.drive_num]
+%if 0
     mov ah, disk_io.reset_function
     int disk_io.interrupt
+%endif
 
     mov ah, disk_io.ext_load_function
     int disk_io.interrupt
@@ -441,7 +447,6 @@ load_sectors_lba:
     ;mov ax, (0x0E << 8) + 'F'
     ;int 0x10
 %endif
-    ;jmp halt
     cli
     hlt
 
