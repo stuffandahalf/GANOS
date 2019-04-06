@@ -123,9 +123,9 @@ check_int13_extensions:
     mov ah, disk_io.check_extension_function
     mov bx, 0x55AA
     int disk_io.interrupt
-    ;jc halt
-    cli
-    hlt
+    jc halt
+    ;cli
+    ;hlt
     
 read_drive_params:
     mov ah, disk_io.ext_param_function
@@ -166,14 +166,17 @@ find_efi_part:
 load_boot_parameter_block:
     pop di  ;mov di, scratch.offset
     add si, gpt_part.first_lba
-    push dword [si + 4] ; ?
-    push dword [si]     ; ?
+    ;push dword [si + 4] ; ?
+    ;push dword [si]     ; ?
+    mov edx, [si + 4]
+    mov eax, [si]
     mov bx, 1
-    call load_sectors_lba
+    call load_sectors_lba_reg
+    ;jmp halt
     
 init_fat:
-    pop eax
-    pop edx
+    ;pop eax
+    ;pop edx
     
     ;lodsd
     ;mov edx, eax
@@ -214,6 +217,7 @@ load_root_dir:
 
 locate_file:
     mov si, data.target_fname
+    push di
     add di, dir_entry.short_fname
     mov cl, data.target_fname_len
 .next_file:
@@ -222,16 +226,17 @@ locate_file:
     add di, dir_entry_size
     test byte [di], 0
     jnz .next_file
-    ;jmp halt
-    cli
+    ;cli
     hlt
     
 load_file:
     push word [di + dir_entry.first_cluster_high - dir_entry.short_fname]
     push word [di + dir_entry.first_cluster_low - dir_entry.short_fname]
     pop eax
+    ;mov si, 
+    pop si
     mov di, target.offset
-    call load_file_from_cluster_buffer
+    call load_file_from_cluster
     
     jmp target.segment:target.offset
     
@@ -256,7 +261,7 @@ locate_file:
     sub bl, dir_entry_size
     jnz .next_file
     ;jmp halt
-    cli
+    ;cli
     hlt
     
 load_file:
@@ -319,9 +324,10 @@ add64:
 ; return edx:eax
 add64_32:
     add eax, ebx
-    jnc .exit
-    inc edx
-.exit:
+    adc edx, 0
+    ;jnc .exit
+    ;inc edx
+;.exit:
     ret
 
 ; eax = cluster
@@ -399,7 +405,9 @@ load_sectors_lba_reg:
     push eax
     mov si, sp
     call load_sectors_lba
-    add sp, 8
+    ;add sp, 8
+    pop eax
+    pop edx
     pop si
     ret
 
@@ -410,7 +418,7 @@ load_sectors_lba_reg:
 ; [ds:si] = 8 byte lba
 ; [es:di] = buffer
 load_sectors_lba:
-    push si
+    ;push si
     
 .load:
     push dword [si + 4] ; push low 4 bytes
@@ -421,8 +429,8 @@ load_sectors_lba:
     push word .packet_size  ; add packet size
 
     mov si, sp
-    mov cl, .retry_counter
-.retry:
+    ;mov cl, .retry_counter
+;.retry:
     mov dl, [data.drive_num]
 %if 0
     mov ah, disk_io.reset_function
@@ -432,23 +440,23 @@ load_sectors_lba:
     mov ah, disk_io.ext_load_function
     int disk_io.interrupt
 
-    jc .fail
+    ;jc .fail
 
     add sp, .packet_size
-    pop si
+    ;pop si
     ret
 
-.fail:
-    dec cl
-    jnz .retry
+;.fail:
+    ;dec cl
+    ;jnz .retry
 
 .print_and_exit:
 %if 0
     ;mov ax, (0x0E << 8) + 'F'
     ;int 0x10
 %endif
-    cli
-    hlt
+    ;cli
+    ;hlt
 
 .lba_size: equ 4 ; words
 .retry_counter: equ 4
