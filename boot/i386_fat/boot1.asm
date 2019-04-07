@@ -3,6 +3,12 @@
 
     mov si, msg
     call print
+    jmp tst
+
+    times 1000 db 0
+tst:
+    mov si, msg
+    call print
     jmp halt
     
 print:
@@ -16,6 +22,7 @@ print:
     jmp .loop
 .end:
     pop ax
+    ret
 
 halt:
     cli

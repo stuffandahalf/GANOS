@@ -57,4 +57,5 @@ dkms.conf
 
 # Compiled binary files
 *.bin
+*.lst
 *.swp

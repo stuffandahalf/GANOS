@@ -2,11 +2,16 @@ AS=nasm
 SECTOR_SIZE=512
 
 ifdef DEBUG
-	QEMU_DEBUG=-d cpu,exec,in_asm
+override QEMU_DEBUG:=$(QEMU_DEBUG) -d cpu,exec,in_asm
 endif
 
-%.bin: %.asm
-	$(AS) -f bin -o $@ $<
+# Connect with gdb to localhost:1234
+ifdef GDB
+override QEMU_DEBUG:=$(QEMU_DEBUG) -s -S
+endif
+
+%.bin %.lst: %.asm
+	$(AS) -l $(@:.bin=.lst) -f bin -o $@ $<
 
 #boot.img: boot0.bin hello.bin efi.bin ../../tools/configurator/configure
 #	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=262144
@@ -52,11 +57,12 @@ unmount: boot.img\
 
 .PHONY: run
 run: boot.img
-	qemu-system-i386 -s $(QEMU_DEBUG) -hda $<
+	qemu-system-i386 $(QEMU_DEBUG) -hda $<
 
 .PHONY: clean
 clean:
 	rm -rf *.bin
+	rm -rf *.lst
 	rm -rf *.o
 	rm -rf *.img
 	rm -rf *.vdi
