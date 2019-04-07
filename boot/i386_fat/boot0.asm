@@ -124,9 +124,7 @@ check_int13_extensions:
     mov bx, 0x55AA
     int disk_io.interrupt
     jc halt
-    ;cli
-    ;hlt
-    
+        
 read_drive_params:
     mov ah, disk_io.ext_param_function
     mov si, scratch.offset
@@ -147,7 +145,8 @@ load_gpt_hdr:
 
 load_part_array:
     mov si, scratch.offset + data.gpt_part_array_lba_offset
-    mov bx, 1   ; should change this to 31?
+    ;mov bx, 1   ; should change this to 31?
+    ;add bl, 30
     call load_sectors_lba
 
 find_efi_part:
@@ -211,8 +210,8 @@ locate_file:
     add di, dir_entry_size
     test byte [di], 0
     jnz .next_file
-    ;cli
-    hlt
+    ; Should halt here
+    ;call halt
     
 load_file:
     push word [di + dir_entry.first_cluster_high - dir_entry.short_fname]
@@ -222,6 +221,7 @@ load_file:
     mov di, target.offset
     call load_file_from_cluster
     
+    ;jmp halt
     jmp target.segment:target.offset
 
 ; Disable interrupts and halt the machine
@@ -301,6 +301,7 @@ load_file_from_cluster:
     mov di, si
     mov si, data.fat_lba
     call add64
+    mov si, di
     
     mov bx, 1
     call load_sectors_lba_reg

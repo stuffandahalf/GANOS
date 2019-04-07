@@ -2,11 +2,11 @@ AS=nasm
 SECTOR_SIZE=512
 
 ifdef DEBUG
-	QEMU_DEBUG=-d cpu,exec,in_asm
+	QEMU_DEBUG=-d cpu,exec,in_asm -S
 endif
 
-%.bin: %.asm
-	$(AS) -f bin -o $@ $<
+%.bin %.lst: %.asm
+	$(AS) -l $(@:.bin=.lst) -f bin -o $@ $<
 
 #boot.img: boot0.bin hello.bin efi.bin ../../tools/configurator/configure
 #	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=262144
@@ -57,6 +57,7 @@ run: boot.img
 .PHONY: clean
 clean:
 	rm -rf *.bin
+	rm -rf *.lst
 	rm -rf *.o
 	rm -rf *.img
 	rm -rf *.vdi
