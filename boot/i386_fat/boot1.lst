@@ -1,0 +1,32 @@
+     1                                      [BITS 16]
+     2                                      org 0x500
+     3                                  
+     4 00000000 BE[0904]                    mov si, msg
+     5 00000003 E8F303                      call print
+     6 00000006 E9E803                      jmp tst
+     7                                  
+     8 00000009 00<rept>                    times 1000 db 0
+     9                                  tst:
+    10 000003F1 BE[0904]                    mov si, msg
+    11 000003F4 E80200                      call print
+    12 000003F7 EB0E                        jmp halt
+    13                                      
+    14                                  print:
+    15 000003F9 50                          push ax
+    16 000003FA B40E                        mov ah, 0x0E
+    17                                  .loop:
+    18 000003FC AC                          lodsb
+    19 000003FD 84C0                        test al, al ; if al == 0
+    20 000003FF 7404                        je .end
+    21 00000401 CD10                        int 0x10
+    22 00000403 EBF7                        jmp .loop
+    23                                  .end:
+    24 00000405 58                          pop ax
+    25 00000406 C3                          ret
+    26                                  
+    27                                  halt:
+    28 00000407 FA                          cli
+    29 00000408 F4                          hlt
+    30                                  
+    31 00000409 48656C6C6F20576F72-     msg: db 'Hello World!', 0x0A, 0x0D, 0
+    31 00000412 6C64210A0D00       

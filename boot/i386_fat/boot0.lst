@@ -1,0 +1,470 @@
+     1                                      [BITS 16]
+     2                                      org 0x7C00
+     3                                  
+     4                                  STRUC gpt_part
+     5 00000000 <res 00000010>              .part_type_guid: resb 16
+     6 00000010 <res 00000010>              .part_guid: resb 16
+     7 00000020 <res 00000008>              .first_lba: resb 8
+     8 00000028 <res 00000008>              .last_lba: resb 8
+     9 00000030 <res 00000008>              .attribute_flags: resb 8
+    10 00000038 <res 00000048>              .part_name: resw 36
+    11                                  ENDSTRUC
+    12                                  
+    13                                  STRUC int13_ext_read_packet
+    14 00000000 <res 00000001>              .size: resb 1
+    15 00000001 <res 00000001>              .unused: resb 1
+    16 00000002 <res 00000002>              .count: resw 1
+    17 00000004 <res 00000002>              .dest_offset: resw 1
+    18 00000006 <res 00000002>              .dest_segment: resw 1
+    19 00000008 <res 00000008>              .lba: resq 1
+    20                                  ENDSTRUC
+    21                                  
+    22                                  STRUC int13_ext_param_packet
+    23 00000000 <res 00000002>              .size: resw 1
+    24 00000002 <res 00000002>              .info_flags: resw 1
+    25 00000004 <res 00000004>              .cylinders: resd 1
+    26 00000008 <res 00000004>              .heads: resd 1
+    27 0000000C <res 00000004>              .sectors_per_track: resd 1
+    28 00000010 <res 00000008>              .sectors: resq 1
+    29 00000018 <res 00000002>              .sector_size: resw 1
+    30 0000001A <res 00000004>              .edd_param_ptr: resd 1
+    31                                  ENDSTRUC
+    32                                  
+    33                                  STRUC fat32_bpb
+    34 00000000 <res 00000003>              .jmp: resb 3
+    35 00000003 <res 00000008>              .oem: resb 8
+    36 0000000B <res 00000002>              .bytes_per_sector: resw 1
+    37 0000000D <res 00000001>              .sectors_per_cluster: resb 1
+    38 0000000E <res 00000002>              .reserved_sectors: resw 1
+    39 00000010 <res 00000001>              .number_of_fats: resb 1
+    40 00000011 <res 00000002>              .max_root_dir_entries: resw 1
+    41 00000013 <res 00000002>              .total_sectors: resw 1
+    42 00000015 <res 00000001>              .media_descriptor: resb 1
+    43 00000016 <res 00000002>              .sectors_per_fat: resw 1
+    44                                  
+    45 00000018 <res 00000002>              .sectors_per_track: resw 1
+    46 0000001A <res 00000002>              .heads: resw 1
+    47 0000001C <res 00000004>              .hidden_sectors: resd 1
+    48 00000020 <res 00000004>              .total_sectors_32: resd 1
+    49                                  
+    50 00000024 <res 00000004>              .sectors_per_fat_32: resd 1
+    51 00000028 <res 00000002>              .drive_description: resw 1
+    52 0000002A <res 00000002>              .version: resw 1
+    53 0000002C <res 00000004>              .root_dir_cluster: resd 1
+    54 00000030 <res 00000002>              .fs_info_sector: resw 1
+    55 00000032 <res 00000002>              .backup_boot_sector: resw 1
+    56 00000034 <res 0000000C>              .reserved: resb 12
+    57 00000040 <res 00000001>              .drive_num: resb 1
+    58 00000041 <res 00000001>              .general_purpse: resb 1
+    59 00000042 <res 00000001>              .extended_boot_sig: resb 1
+    60 00000043 <res 00000004>              .volume_id: resd 1
+    61 00000047 <res 0000000B>              .volume_label: resb 11
+    62 00000052 <res 00000008>              .fs_type: resb 8
+    63                                  ENDSTRUC
+    64                                  
+    65                                  STRUC vfat_lfn
+    66 00000000 <res 00000001>              .sequence: resb 1
+    67 00000001 <res 0000000A>              .name1: resw 5
+    68 0000000B <res 00000001>              .attributes: resb 1
+    69 0000000C <res 00000001>              .type: resb 1
+    70 0000000D <res 00000001>              .checksum: resb 1
+    71 0000000E <res 0000000C>              .name2: resw 6
+    72 0000001A <res 00000002>              .first_cluster: resw 1
+    73 0000001C <res 00000004>              .name3: resw 2
+    74                                  ENDSTRUC
+    75                                  
+    76                                  STRUC dir_entry
+    77 00000000 <res 00000020>              .lfn: resb vfat_lfn_size
+    78                                      
+    79 00000020 <res 00000008>              .short_fname: resb 8
+    80 00000028 <res 00000003>              .short_ext: resb 3
+    81 0000002B <res 00000001>              .file_attributes: resb 1
+    82 0000002C <res 00000001>              .user_attributes: resb 1
+    83 0000002D <res 00000001>              .first_char_deleted_file: resb 1
+    84 0000002E <res 00000002>              .timestamp: resw 1
+    85 00000030 <res 00000002>              .creation_date: resw 1
+    86 00000032 <res 00000002>              .owner_id: resw 1
+    87 00000034 <res 00000002>              .first_cluster_high: resw 1
+    88 00000036 <res 00000002>              .last_modified_time: resw 1
+    89 00000038 <res 00000002>              .last_modified_date: resw 1
+    90 0000003A <res 00000002>              .first_cluster_low: resw 1
+    91 0000003C <res 00000004>              .file_size: resd 1
+    92                                  ENDSTRUC
+    93                                  
+    94                                  target:
+    95                                  .segment: equ 0x0000
+    96                                  .offset: equ 0x0500
+    97                                  
+    98                                  scratch:
+    99                                  .segment: equ 0x0000
+   100                                  .offset: equ 0x7E00
+   101                                  
+   102                                  _start:
+   103                                  .setup:
+   104                                      ; Configure segment registers to point to correct address
+   105 00000000 FA                          cli
+   106 00000001 31C0                        xor ax, ax
+   107 00000003 8ED8                        mov ds, ax
+   108 00000005 8EC0                        mov es, ax
+   109                                      ; initialize stack
+   110 00000007 8ED0                        mov ss, ax
+   111 00000009 BC[0000]                    mov sp, _start
+   112                                  
+   113 0000000C FB                          sti
+   114                                  
+   115 0000000D 50                          push ax
+   116 0000000E 68[1200]                    push word init
+   117 00000011 CB                          retf
+   118                                  
+   119                                  init:
+   120 00000012 8816[8E01]                  mov [data.drive_num], dl    ; Preserve drive number of loading drive
+   121                                  
+   122                                  check_int13_extensions:
+   123 00000016 B441                        mov ah, disk_io.check_extension_function
+   124 00000018 BBAA55                      mov bx, 0x55AA
+   125 0000001B CD13                        int disk_io.interrupt
+   126 0000001D 0F82BA00                    jc halt
+   127                                          
+   128                                  read_drive_params:
+   129 00000021 B448                        mov ah, disk_io.ext_param_function
+   130 00000023 BE007E                      mov si, scratch.offset
+   131 00000026 CD13                        int disk_io.interrupt
+   132 00000028 7206                        jc load_gpt_hdr
+   133                                      
+   134 0000002A A1187E                      mov ax, [scratch.offset + int13_ext_param_packet.sector_size]
+   135 0000002D A3[8F01]                    mov [data.sector_size], ax
+   136                                  
+   137                                  ; load the gpt from the second sector of the drive
+   138                                  load_gpt_hdr:
+   139 00000030 BF007E                      mov di, scratch.offset
+   140 00000033 57                          push di
+   141 00000034 6631D2                      xor edx, edx
+   142 00000037 BB0100                      mov bx, 1
+   143 0000003A 660FB6C3                    movzx eax, bl   ; edx:eax = 1
+   144 0000003E E81001                      call load_sectors_lba_reg
+   145                                  
+   146                                  load_part_array:
+   147 00000041 BE487E                      mov si, scratch.offset + data.gpt_part_array_lba_offset
+   148                                      ;mov bx, 1   ; should change this to 31?
+   149                                      ;add bl, 30
+   150 00000044 E81A01                      call load_sectors_lba
+   151                                  
+   152                                  find_efi_part:
+   153 00000047 B104                        mov cl, data.gpt_parts_per_sector
+   154 00000049 89FE                        mov si, di
+   155 0000004B BF[A101]                    mov di, data.efi_sys_part_guid
+   156                                  .next:
+   157 0000004E B110                        mov cl, data.guid_len
+   158 00000050 E82801                      call compare_bytes
+   159 00000053 730C                        jnc load_boot_parameter_block
+   160 00000055 FEC9                        dec cl
+   161 00000057 0F848000                    jz halt
+   162 0000005B 81C68000                    add si, gpt_part_size
+   163 0000005F EBED                        jmp .next
+   164                                      
+   165                                  load_boot_parameter_block:
+   166 00000061 5F                          pop di  ;mov di, scratch.offset
+   167 00000062 83C620                      add si, gpt_part.first_lba
+   168 00000065 668B5404                    mov edx, [si + 4]
+   169 00000069 668B04                      mov eax, [si]
+   170 0000006C BB0100                      mov bx, 1
+   171 0000006F E8DF00                      call load_sectors_lba_reg
+   172                                      
+   173                                  init_fat:
+   174 00000072 660FB75D0E                  movzx ebx, word [di + fat32_bpb.reserved_sectors]
+   175 00000077 E86B00                      call add64_32
+   176                                      ; edx:eax = fat lba
+   177                                      
+   178 0000007A BE[9101]                    mov si, data.fat_lba
+   179 0000007D 668904                      mov [si], eax
+   180 00000080 66895404                    mov [si + 4], edx
+   181                                      
+   182                                      ;push di ; preserve fat bpb
+   183 00000084 033E[8F01]                  add di, [data.sector_size]
+   184 00000088 BB0100                      mov bx, 1
+   185 0000008B E8C300                      call load_sectors_lba_reg
+   186                                      
+   187                                      ; number of fats * sectors per fat (64-bit)
+   188 0000008E 6631D2                      xor edx, edx
+   189 00000091 66A1247E                    mov eax, [scratch.offset + fat32_bpb.sectors_per_fat_32]
+   190 00000095 660FB61E107E                movzx ebx, byte [scratch.offset + fat32_bpb.number_of_fats]
+   191 0000009B 66F7E3                      mul ebx
+   192 0000009E E83C00                      call add64
+   193                                      
+   194 000000A1 66894408                    mov [si + 8], eax               ; si = data.fat_lba + 8 = data_lba
+   195 000000A5 668916[A501]                mov [data.data_lba + 12], edx
+   196                                      
+   197                                  load_root_dir:
+   198 000000AA 66A12C7E                    mov eax, [scratch.offset + fat32_bpb.root_dir_cluster]
+   199 000000AE E83C00                      call load_file_from_cluster_buffer
+   200                                      
+   201                                  
+   202                                  locate_file:
+   203 000000B1 BE[B101]                    mov si, data.target_fname
+   204 000000B4 57                          push di
+   205 000000B5 83C720                      add di, dir_entry.short_fname
+   206 000000B8 B10B                        mov cl, data.target_fname_len
+   207                                  .next_file:
+   208 000000BA E8BE00                      call compare_bytes
+   209 000000BD 7308                        jnc load_file
+   210 000000BF 83C740                      add di, dir_entry_size
+   211 000000C2 F60500                      test byte [di], 0
+   212 000000C5 75F3                        jnz .next_file
+   213                                      ; Should halt here
+   214                                      ;call halt
+   215                                      
+   216                                  load_file:
+   217 000000C7 FF7514                      push word [di + dir_entry.first_cluster_high - dir_entry.short_fname]
+   218 000000CA FF751A                      push word [di + dir_entry.first_cluster_low - dir_entry.short_fname]
+   219 000000CD 6658                        pop eax
+   220 000000CF 5E                          pop si
+   221 000000D0 BF0005                      mov di, target.offset
+   222 000000D3 E81F00                      call load_file_from_cluster
+   223                                      
+   224                                      ;jmp halt
+   225 000000D6 EA00050000                  jmp target.segment:target.offset
+   226                                  
+   227                                  ; Disable interrupts and halt the machine
+   228                                  halt:
+   229                                      ;mov ax, (0x0E << 8) + 'H'
+   230                                      ;int 0x10
+   231                                  dhalt:
+   232 000000DB FA                          cli
+   233 000000DC F4                          hlt
+   234                                      ;int 0x18
+   235                                  
+   236                                  
+   237                                  ; parameters:
+   238                                  ; edx:eax 64-bit base
+   239                                  ; si 64-bit operand
+   240                                  ; return edx:eax
+   241                                  add64:
+   242 000000DD 660304                      add eax, [si]
+   243 000000E0 66135404                    adc edx, [si + 4]
+   244 000000E4 C3                          ret
+   245                                      
+   246                                  ; parameters
+   247                                  ; edx:eax 64-bit base
+   248                                  ; ebx 32-bit operand
+   249                                  ; return edx:eax
+   250                                  add64_32:
+   251 000000E5 6601D8                      add eax, ebx
+   252 000000E8 6683D200                    adc edx, 0
+   253                                      ;jnc .exit
+   254                                      ;inc edx
+   255                                  ;.exit:
+   256 000000EC C3                          ret
+   257                                  
+   258                                  ; eax = cluster
+   259                                  ; es:di = scratch (1xsector) + buffer (sectors_per_cluster)
+   260                                  ; returns ecx = sectors read
+   261                                  ;         di = file
+   262                                  load_file_from_cluster_buffer:
+   263 000000ED 8B0E[8F01]                  mov cx, [data.sector_size]
+   264 000000F1 89FE                        mov si, di                  ; si = scratch buffer
+   265                                      ;add di, [data.sector_size]  ; di = destination
+   266 000000F3 01CF                        add di, cx
+   267                                  load_file_from_cluster:
+   268 000000F5 57                          push di
+   269                                      
+   270                                  .loop:
+   271 000000F6 6650                        push eax
+   272 000000F8 6683E802                    sub eax, 2
+   273 000000FC 660FB61E0D7E                movzx ebx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
+   274 00000102 66F7E3                      mul ebx
+   275                                      ; edx:eax = relative sector
+   276                                      
+   277 00000105 56                          push si
+   278 00000106 BE[9901]                    mov si, data.data_lba
+   279 00000109 E8D1FF                      call add64
+   280                                      ; edx:eax = absolute cluster lba
+   281 0000010C 5E                          pop si
+   282                                      ;movzx bx, byte [scratch.offset + fat32_bpb.sectors_per_cluster]
+   283                                      ; ebx still sectors per cluster
+   284 0000010D E84100                      call load_sectors_lba_reg
+   285                                      
+   286                                      ;movzx eax, word [data.sector_size]
+   287 00000110 660FB7C1                    movzx eax, cx
+   288 00000114 C1E802                      shr ax, 2   ; ax = (ax / sizeof(entry)) = ax / 4 = ax >> 2
+   289                                      ; ax = entries per sector
+   290                                      
+   291 00000117 6631D2                      xor edx, edx
+   292 0000011A 665B                        pop ebx
+   293 0000011C 6693                        xchg eax, ebx
+   294 0000011E 66F7F3                      div ebx
+   295                                      ; eax = page / sector offsets
+   296                                      ; edx = offset / index
+   297                                      
+   298 00000121 57                          push di
+   299 00000122 6652                        push edx
+   300 00000124 6631D2                      xor edx, edx
+   301 00000127 89F7                        mov di, si
+   302 00000129 BE[9101]                    mov si, data.fat_lba
+   303 0000012C E8AEFF                      call add64
+   304 0000012F 89FE                        mov si, di
+   305                                      
+   306 00000131 BB0100                      mov bx, 1
+   307 00000134 E81A00                      call load_sectors_lba_reg
+   308                                  
+   309 00000137 6658                        pop eax
+   310 00000139 66C1E002                    shl eax, 2  ; index * sizeof(entry)
+   311 0000013D 66678B0407                  mov eax, [edi + eax]
+   312 00000142 5F                          pop di
+   313                                      
+   314 00000143 663DF7FF0F00                cmp eax, data.fat_terminator
+   315 00000149 7304                        jae .exit
+   316                                      ;add di, [data.sector_size]
+   317 0000014B 01CF                        add di, cx
+   318 0000014D EBA7                        jmp .loop
+   319                                      
+   320                                  .exit:
+   321 0000014F 5F                          pop di
+   322 00000150 C3                          ret
+   323                                  
+   324                                  ; parameters:
+   325                                  ; edx:eax = 64-bit lba
+   326                                  ; bx = sector count (max 127)
+   327                                  ; [es:di] = buffer
+   328                                  load_sectors_lba_reg:
+   329 00000151 56                          push si
+   330 00000152 6652                        push edx
+   331 00000154 6650                        push eax
+   332 00000156 89E6                        mov si, sp
+   333 00000158 E80600                      call load_sectors_lba
+   334                                      ;add sp, 8
+   335 0000015B 6658                        pop eax
+   336 0000015D 665A                        pop edx
+   337 0000015F 5E                          pop si
+   338 00000160 C3                          ret
+   339                                  
+   340                                  ; construct int 13h extended read
+   341                                  ; packet on stack and read data
+   342                                  ; parameters:
+   343                                  ; bx = sector count (max 127)
+   344                                  ; [ds:si] = 8 byte lba
+   345                                  ; [es:di] = buffer
+   346                                  load_sectors_lba:
+   347                                      ;push si
+   348                                      
+   349                                  .load:
+   350 00000161 66FF7404                    push dword [si + 4] ; push low 4 bytes
+   351 00000165 66FF34                      push dword [si]     ; push high 4 bytes
+   352 00000168 06                          push es             ; add destination segment
+   353 00000169 57                          push di             ; add destination offset
+   354 0000016A 53                          push bx             ; add number of sectors to be read
+   355 0000016B 6A10                        push word .packet_size  ; add packet size
+   356                                  
+   357 0000016D 89E6                        mov si, sp
+   358                                      ;mov cl, .retry_counter
+   359                                  ;.retry:
+   360 0000016F 8A16[8E01]                  mov dl, [data.drive_num]
+   361                                  %if 0
+   362                                      mov ah, disk_io.reset_function
+   363                                      int disk_io.interrupt
+   364                                  %endif
+   365                                  
+   366 00000173 B442                        mov ah, disk_io.ext_load_function
+   367 00000175 CD13                        int disk_io.interrupt
+   368                                  
+   369                                      ;jc .fail
+   370                                  
+   371 00000177 83C410                      add sp, .packet_size
+   372                                      ;pop si
+   373 0000017A C3                          ret
+   374                                  
+   375                                  ;.fail:
+   376                                      ;dec cl
+   377                                      ;jnz .retry
+   378                                  
+   379                                  .print_and_exit:
+   380                                  %if 0
+   381                                      ;mov ax, (0x0E << 8) + 'F'
+   382                                      ;int 0x10
+   383                                  %endif
+   384                                      ;cli
+   385                                      ;hlt
+   386                                  
+   387                                  .lba_size: equ 4 ; words
+   388                                  .retry_counter: equ 4
+   389                                  .packet_size: equ int13_ext_read_packet_size
+   390                                  
+   391                                  
+   392                                  ; Validate that loaded sector is a gpt header
+   393                                  ;validate_gpt_hdr:
+   394                                  ; ds:si = address of first set of bytes
+   395                                  ; ds:di = address of second set of bytes
+   396                                  ; cl = number of bytes to compare
+   397                                  ; carry flag set if false
+   398                                  compare_bytes:
+   399 0000017B 56                          push si
+   400 0000017C 57                          push di
+   401                                  .loop:
+   402 0000017D AC                          lodsb   ; load al with next character from required header
+   403 0000017E 3805                        cmp [di], al
+   404 00000180 7508                        jne .fail
+   405 00000182 47                          inc di  ; go to next character in loaded header
+   406                                  
+   407 00000183 FEC9                        dec cl
+   408 00000185 75F6                        jnz .loop
+   409                                  
+   410                                  .success:
+   411 00000187 F8                          clc
+   412 00000188 EB01                        jmp .exit
+   413                                  
+   414                                  .fail:
+   415 0000018A F9                          stc
+   416                                  .exit:
+   417 0000018B 5F                          pop di
+   418 0000018C 5E                          pop si
+   419 0000018D C3                          ret
+   420                                  
+   421                                  data:
+   422 0000018E 80                      .drive_num: db 0x80
+   423 0000018F 0002                    .sector_size: dw 512
+   424                                  .fat_terminator: equ 0x0FFFF7   ; ja to test
+   425 00000191 0000000000000000        .fat_lba: dq 0
+   426 00000199 0000000000000000        .data_lba: dq 0
+   427 000001A1 28732AC11FF8D211BA-     .efi_sys_part_guid: db 0x28, 0x73, 0x2A, 0xC1, 0x1F, 0xF8, 0xD2, 0x11, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B
+   427 000001AA 4B00A0C93EC93B     
+   428                                  .guid_len: equ 16
+   429                                  .gpt_parts_per_sector: equ 4
+   430                                  .gpt_part_array_lba_offset: equ 0x48
+   431 000001B1 424F4F543120202042-     .target_fname: db 'BOOT1   BIN'
+   431 000001BA 494E               
+   432                                  .target_fname_len: equ ($ - .target_fname)
+   433                                  
+   434                                  disk_io:
+   435                                  .interrupt: equ 0x13
+   436                                  .reset_function: equ 0
+   437                                  .ext_load_function: equ 0x42
+   438                                  .check_extension_function: equ 0x41
+   439                                  .ext_param_function: equ 0x48
+   440                                  
+   441 000001BC 00<rept>                    times 446 - ($ - $$) db 0
+   442                                  
+   443                                  STRUC part_entry
+   444 00000000 <res 00000001>              .status: resb 1
+   445 00000001 <res 00000003>              .first_chs_address: resb 3
+   446 00000004 <res 00000001>              .type: resb 1
+   447 00000005 <res 00000003>              .last_chs_address: resb 3
+   448 00000008 <res 00000004>              .first_lba: resd 1
+   449 0000000C <res 00000004>              .sector_count: resd 1
+   450                                  ENDSTRUC
+   451                                  
+   452                                  part_tbl:
+   453                                  .part1:
+   454                                  ISTRUC part_entry
+   455 000001BE 80                          at part_entry.status, db 0x80
+   456 000001BF 000100                      at part_entry.first_chs_address, db 0x00, 0x01, 0x00
+   457 000001C2 EE                          at part_entry.type, db 0xEE
+   458 000001C3 FFFFFF                      at part_entry.last_chs_address, db 0xFF, 0xFF, 0xFF
+   459 000001C6 00000000                    at part_entry.first_lba, dd 0x00000000
+   460 000001CA FFFFFFFF                    at part_entry.sector_count, dd 0xFFFFFFFF
+   461                                  IEND
+   462 000001CE 00<rept>                .part2: times part_entry_size db 0
+   463 000001DE 00<rept>                .part3: times part_entry_size db 0
+   464 000001EE 00<rept>                .part4: times part_entry_size db 0
+   465                                  
+   466                                  boot_sig:
+   467 000001FE 55                          db 0x55
+   468 000001FF AA                          db 0xAA
