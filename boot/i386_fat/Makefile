@@ -13,6 +13,14 @@ endif
 %.bin %.lst: %.asm
 	$(AS) -l $(@:.bin=.lst) -f bin -o $@ $<
 
+%.o: %.c
+	~/bin/cross/bin/i686-elf-gcc -c -o $@ $< -ffreestanding -O2 -Wall -Wextra
+
+boot1.bin: boot1.o boot1.ld
+	#~/bin/cross/bin/i686-elf-gcc -T boot1.ld -o $@ -ffreestanding -O2 -nostdlib $< -lgcc
+	~/bin/cross/bin/i686-elf-gcc -Ttext 0x500 -o boot1.pe $< -nostdlib
+	objcopy -O binary boot1.pe $@
+
 #boot.img: boot0.bin hello.bin efi.bin ../../tools/configurator/configure
 #	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=262144
 #	dd if=boot0.bin of=$@ seek=0 count=1 conv=notrunc
@@ -62,6 +70,7 @@ run: boot.img
 .PHONY: clean
 clean:
 	rm -rf *.bin
+	rm -rf *.pe
 	rm -rf *.lst
 	rm -rf *.o
 	rm -rf *.img

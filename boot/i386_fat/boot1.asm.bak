@@ -144,8 +144,8 @@ gdt:
     
 
 gdtr:
-    .size: $ - gdt
-    .offset: gdt
+    .size: dw $ - gdt
+    .offset: dd gdt
 
 strings:
 .start: db 'Loaded stage 1', 0x0A, 0x0D, 0
