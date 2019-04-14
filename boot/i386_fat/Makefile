@@ -16,7 +16,7 @@ endif
 %.o: %.c
 	~/bin/cross/bin/i686-elf-gcc -c -o $@ $< -ffreestanding -O2 -Wall -Wextra
 
-boot1.bin: boot1.o boot1.ld
+boot1.bin: boot1.o
 	#~/bin/cross/bin/i686-elf-gcc -T boot1.ld -o $@ -ffreestanding -O2 -nostdlib $< -lgcc
 	~/bin/cross/bin/i686-elf-gcc -Ttext 0x500 -o boot1.pe $< -nostdlib
 	objcopy -O binary boot1.pe $@
