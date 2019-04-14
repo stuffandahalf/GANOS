@@ -1,5 +1,9 @@
     [BITS 16]
-    org 0x500
+    ;org 0x500
+    
+    global _start
+    global halt
+    extern entry
 
 _start:
     mov si, strings.start
@@ -114,6 +118,8 @@ enable_a20:
 
     mov si, strings.msg
     call print
+    
+    jmp entry
     
 load_gdt:
     lgdt [gdtr]

@@ -428,7 +428,7 @@ data:
 .guid_len: equ 16
 .gpt_parts_per_sector: equ 4
 .gpt_part_array_lba_offset: equ 0x48
-.target_fname: db 'BOOT1   BIN'
+.target_fname: db 'BOOTLD  BIN'
 .target_fname_len: equ ($ - .target_fname)
 
 disk_io:
