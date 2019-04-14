@@ -3,7 +3,7 @@
     
     global _start
     global halt
-    extern entry
+    extern entry32
 
 _start:
     mov si, strings.start
@@ -119,11 +119,22 @@ enable_a20:
     mov si, strings.msg
     call print
     
-    jmp entry
+    ;jmp entry
     
-load_gdt:
+go32:
+    cli
     lgdt [gdtr]
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+    jmp 08h:init32
     
+    [bits 32]
+init32:
+    jmp entry32
+    
+    
+    [bits 16]
 halt:
     cli
     hlt
@@ -143,11 +154,13 @@ print:
     ret
 
 gdt:
-.entry0:
-    dw 0
-    dw 0
-.entry1:
-    
+.null:
+    dq 0x0000000000000000
+.code:
+    dq 0x00CF9A000000FFFF
+.data:
+    dq 0x00CF92000000FFFF
+
 
 gdtr:
     .size: dw $ - gdt
