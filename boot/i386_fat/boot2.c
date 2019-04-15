@@ -11,12 +11,12 @@ void NORETURN halt();
 void clear_screen();
 
 void NORETURN entry32() {
-    //clear_screen();
+    clear_screen();
     //print("Entered protected mode.\r\n");
-    /*print("C pointer size is ");
-    char *size = "0\r\n";
+    print("C pointer size is ");
+    char *size = "0 bytes\r\n";
     size[0] += sizeof(void *);
-    print(size);*/
+    print(size);
     halt();
 }
 
@@ -30,7 +30,7 @@ struct display {
 struct display screen = { .buffer = (uint8_t *)0xB8000, .index = 0, .width = 80, .height = 25 };
 
 void clear_screen() {
-    for (screen.index = 0; screen.index < (screen.width * screen.height * 2); screen.index ++) {
+    for (screen.index = 0; screen.index < (screen.width * screen.height * 2); screen.index++) {
         screen.buffer[screen.index] = 0;
     }
     screen.index = 0;
@@ -45,9 +45,15 @@ void putchar(char c, uint8_t colour) {
 }
 
 void print(const char *str) {
+    int i;
     const char *c;
     for (c = str; *c != '\0'; c++) {
         switch (*c) {
+        case '\t':
+            for (i = 0; i < 4; i++) {
+                putchar(0, 0);
+            }
+            break;
         case '\r':
             screen.index -= (screen.index % (screen.width * 2));
             break;
