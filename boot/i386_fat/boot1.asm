@@ -127,14 +127,42 @@ get_video_mode:
     
     mov di, video_data
     mov [di], ax
-    ;inc di
-    ;inc di
     add di, 2
     mov [di], bh
     
-    ;mov si, strings.vmode
-    ;add [si], al
-    call print
+get_memory_map:
+.try_E820:
+    mov di, memory_map.entries
+    xor ebx, ebx
+    mov edx, 0x534D4159
+.get_next_entry:
+    mov ecx, 24
+    mov eax, 0xE820
+    int 0x15
+    test ebx, ebx
+    jz .next
+    jc .next
+    xor ch, ch
+    add di, 24
+    inc byte [memory_map.count]
+    jmp .get_next_entry
+    
+.next:
+%if 0
+    test byte [memory_map.count], [memory_map.count]
+    jnz .exit
+    
+.try_E801:
+    mov ax, 0xE801
+    int 0x15
+    
+.conventional_memory:
+    int 0x12
+    add di, 12
+    stosb
+    inc byte [memory_map.count]
+%endif
+.exit:
     
 go32:
     cli
@@ -154,10 +182,12 @@ init32:
     mov gs, ax
     
     mov ss, ax
-    ;mov esp, 0x90000
     mov esp, 0x7C00
     
-    mov eax, video_data
+    
+    
+    ;mov eax, video_data
+    mov eax, sys_info
     push eax
     call entry32
     
@@ -195,15 +225,19 @@ gdt:
 
 
 gdtr:
-    .size: dw $ - gdt - 1
+    .size: dw $ - gdt
     .offset: dd gdt
     
+strings:
+.start: db 'Loaded stage 1', 0x0A, 0x0D, 0
+.msg: db 'Hello World!', 0x0A, 0x0D, 0
+
+sys_info:
 video_data:
 .mode: db 0
 .columns: db 0
 .active_page: db 0
-
-strings:
-.start: db 'Loaded stage 1', 0x0A, 0x0D, 0
-.msg: db 'Hello World!', 0x0A, 0x0D, 0
-.vmode: db '0 is the video mode', 0x0A, 0x0D, 0
+memory_map:
+.count: db 0
+.address: dd $ + 1
+.entries:
