@@ -121,6 +121,21 @@ enable_a20:
     
     ;jmp entry
     
+get_video_mode:
+    mov ah, 0x0F
+    int 0x10
+    
+    mov di, video_data
+    mov [di], ax
+    ;inc di
+    ;inc di
+    add di, 2
+    mov [di], bh
+    
+    ;mov si, strings.vmode
+    ;add [si], al
+    call print
+    
 go32:
     cli
     lgdt [gdtr]
@@ -131,7 +146,20 @@ go32:
     
     [bits 32]
 init32:
-    jmp entry32
+
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    
+    mov ss, ax
+    ;mov esp, 0x90000
+    mov esp, 0x7C00
+    
+    mov eax, video_data
+    push eax
+    call entry32
     
     
     [bits 16]
@@ -156,16 +184,26 @@ print:
 gdt:
 .null:
     dq 0x0000000000000000
-.code:
+.code_priv0:
     dq 0x00CF9A000000FFFF
-.data:
+.data_priv0:
     dq 0x00CF92000000FFFF
+;.code_priv3:
+;    dq 0x00CFFA000000FFFF
+;.data_priv3:
+;    dq 0x00CFF2000000FFFF
 
 
 gdtr:
-    .size: dw $ - gdt
+    .size: dw $ - gdt - 1
     .offset: dd gdt
+    
+video_data:
+.mode: db 0
+.columns: db 0
+.active_page: db 0
 
 strings:
 .start: db 'Loaded stage 1', 0x0A, 0x0D, 0
 .msg: db 'Hello World!', 0x0A, 0x0D, 0
+.vmode: db '0 is the video mode', 0x0A, 0x0D, 0

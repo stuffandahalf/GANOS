@@ -1,33 +1,99 @@
-//__asm__(".code16");
-
 #include <stddef.h>
 #include <stdint.h>
 
 #define NORETURN __attribute__((noreturn))
 
-void print(const char *str);
-void NORETURN halt();
-
-void clear_screen();
-
-void NORETURN entry32() {
-    clear_screen();
-    //print("Entered protected mode.\r\n");
-    print("C pointer size is ");
-    char *size = "0 bytes\r\n";
-    size[0] += sizeof(void *);
-    print(size);
-    halt();
-}
+struct video_mode {
+    uint8_t mode;
+    uint8_t columns;
+    uint8_t active_page;
+} __attribute__((packed));
 
 struct display {
     volatile uint8_t *buffer;
     uint16_t index;
     uint16_t width;
     uint16_t height;
-};
+} __attribute__((packed));
 
-struct display screen = { .buffer = (uint8_t *)0xB8000, .index = 0, .width = 80, .height = 25 };
+void init_screen(struct video_mode *vmode);
+void print(const char *str);
+void NORETURN halt();
+
+void clear_screen();
+
+struct display screen;
+
+void NORETURN entry32(struct video_mode *vmode) {
+    init_screen(vmode);
+    print("Entered protected mode.\r\n");
+    
+    //char *mode = "00\r\n";
+    //mode[0] += vmode->mode;
+    //mode[0] += vmode->columns;
+    //mode[0] += vmode->columns / 10;
+    //mode[1] += vmode->columns % 10;
+    //print(mode);
+    //print("C pointer size is ");
+    //char *size = "0 bytes\r\n";
+    //size[0] += sizeof(void *);
+    //print(size);
+    halt();
+}
+
+void init_screen(struct video_mode *vmode) {
+    screen.index = 0;
+    if (vmode->mode > 0x10) {
+        screen.buffer = NULL;
+    }
+    else if (vmode->mode >= 0x0D) {
+        screen.buffer = (uint8_t *)0xA0000;
+    }
+    else if (vmode->mode >= 0x07) {
+        screen.buffer = (uint8_t *)0xB0000;
+    }
+    else {
+        screen.buffer = (uint8_t *)0xB8000;
+    }
+    
+    switch(vmode->mode) {
+    case 0:
+    case 1:
+        screen.width = 40;
+        screen.height = 25;
+        break;
+    case 2:
+    case 3:
+    case 7:
+        screen.width = 80;
+        screen.height = 25;
+        break;
+    case 4:
+    case 5:
+    case 9:
+    case 0x0D:
+        screen.width = 320;
+        screen.height = 200;
+        break;
+    case 6:
+    case 0x0A:
+    case 0x0E:
+        screen.width = 640;
+        screen.height = 200;
+        break;
+    case 8:
+        screen.width = 160;
+        screen.height = 200;
+        break;
+    case 0x0F:
+    case 0x10:
+        screen.width = 640;
+        screen.height = 350;
+        break;
+    }
+    
+    clear_screen();
+}
 
 void clear_screen() {
     for (screen.index = 0; screen.index < (screen.width * screen.height * 2); screen.index++) {
