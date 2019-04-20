@@ -32,9 +32,9 @@ struct sys_info {
 void init_screen(struct video_mode *vmode);
 void print(const char *str);
 void printl(long l);
-void NORETURN halt();
+void NORETURN halt(void);
 
-void clear_screen();
+void clear_screen(void);
 
 struct display screen;
 
@@ -100,7 +100,7 @@ void init_screen(struct video_mode *vmode) {
     clear_screen();
 }
 
-void clear_screen() {
+void clear_screen(void) {
     for (screen.index = 0; screen.index < (screen.width * screen.height * 2); screen.index++) {
         screen.buffer[screen.index] = 0;
     }
