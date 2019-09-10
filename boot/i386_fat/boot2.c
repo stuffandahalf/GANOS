@@ -28,13 +28,10 @@ enum colour {
 
 #define CHAR_COLOUR(bg, fg) ((FLAG(bg) << 4) | FLAG(fg))
 
-bool x = true;
 void printc(const char *str, enum colour colour);
 void print(const char *str);
 int printf(const char *fmt, ...);
-void NORETURN halt();
-
-void clear_screen();
+void NORETURN halt(void);
 
 struct video_mode {
     uint8_t mode;
@@ -64,14 +61,13 @@ struct sys_info {
 
 void init_screen(struct video_mode *vmode);
 void print(const char *str);
-void printl(long l);
+void printl(long l, enum colour colour);
 void NORETURN halt(void);
 
 void clear_screen(void);
 
 struct display screen;
 
-//void NORETURN entry32(struct video_mode *vmode) {
 void NORETURN entry32(struct sys_info *info)
 {
     init_screen(&info->vmode);
@@ -190,15 +186,15 @@ inline void print(const char *str)
     printc(str, CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY));
 }
 
-void printd(int d, enum colour colour)
+void printl(long l, enum colour colour)
 {
-    if (d < 0) {
+    if (l < 0) {
         putchar('-', colour);
-        printd(d * -1, colour);
+        printl(l * -1, colour);
     }
-    if (d > 0) {
-        printd(d / 10, colour);
-        putchar('0' + d % 10, colour);
+    if (l > 0) {
+        printl(l / 10, colour);
+        putchar('0' + l % 10, colour);
     }
 }
 
@@ -237,7 +233,7 @@ int printf(const char *fmt, ...)
                 switch (*c) {
                 case 'd':
                     darg = va_arg(args, int);
-                    printd(darg, colour);
+                    printl(darg, colour);
                     fmt_specifier = false;
                     break;
                 case 'u':
