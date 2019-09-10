@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #define NORETURN __attribute__((noreturn))
+#define PACKED __attribute__((packed))
 #define FLAG(f) ((unsigned int)(f))
 
 enum colour {
@@ -34,19 +35,6 @@ int printf(const char *fmt, ...);
 void NORETURN halt();
 
 void clear_screen();
-
-void NORETURN entry32()
-{
-    clear_screen();
-    print("Entered protected mode.\r\n");
-    //print("C pointer size is ");
-    //char *size = "0 bytes\r\n";
-    //size[0] += sizeof(void *);
-    //print(size);
-    printf("%c pointer size is %d\r\n", 'C', sizeof(void *));
-    printc("This is a test\r\n", CHAR_COLOUR(COLOUR_GREEN, COLOUR_BLACK));
-    halt();
-}
 
 struct video_mode {
     uint8_t mode;
@@ -87,8 +75,15 @@ struct display screen;
 void NORETURN entry32(struct sys_info *info)
 {
     init_screen(&info->vmode);
+    
+    clear_screen();
     print("Entered protected mode.\r\n");
-    printl(info->memory_entries);
+    //print("C pointer size is ");
+    //char *size = "0 bytes\r\n";
+    //size[0] += sizeof(void *);
+    //print(size);
+    printf("%c pointer size is %d\r\n", 'C', sizeof(void *));
+    printc("This is a test\r\n", CHAR_COLOUR(COLOUR_GREEN, COLOUR_BLACK));
     halt();
 }
 
