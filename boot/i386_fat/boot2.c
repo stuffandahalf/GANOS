@@ -83,6 +83,7 @@ void NORETURN entry32(struct sys_info *info)
     //size[0] += sizeof(void *);
     //print(size);
     printf("%c pointer size is %d\r\n", 'C', sizeof(void *));
+    printf("%d\r\n", -12345);
     printc("This is a test\r\n", CHAR_COLOUR(COLOUR_GREEN, COLOUR_BLACK));
     halt();
 }
@@ -189,6 +190,17 @@ inline void print(const char *str)
     printc(str, CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY));
 }
 
+void printd(int d, enum colour colour)
+{
+    if (d < 0) {
+        putchar('-', colour);
+        printd(d * -1, colour);
+    }
+    if (d > 0) {
+        printd(d / 10, colour);
+        putchar('0' + d % 10, colour);
+    }
+}
 
 int printf(const char *fmt, ...)
 {
@@ -225,10 +237,7 @@ int printf(const char *fmt, ...)
                 switch (*c) {
                 case 'd':
                     darg = va_arg(args, int);
-                    do {
-                        putchar('0' + darg % 10, colour);
-                        darg /= 10;
-                    } while (darg != 0);
+                    printd(darg, colour);
                     fmt_specifier = false;
                     break;
                 case 'u':
