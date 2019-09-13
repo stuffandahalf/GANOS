@@ -3,6 +3,8 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+//#define PROTECTED_PRINT
+
 #define NORETURN __attribute__((noreturn))
 #define PACKED __attribute__((packed))
 #define FLAG(f) ((unsigned int)(f))
@@ -46,22 +48,27 @@ struct display {
     uint16_t height;
 } __attribute__((packed));
 
+enum memory_type {
+    MEMORY_TYPE_FREE = 1,
+    MEMORY_TYPE_RESERVED = 2
+};
+
 struct memory {
     uint64_t base;
     uint64_t length;
-    uint32_t type;
+    enum memory_type type;
     uint32_t ext_attributes;
 } __attribute__((packed));
 
 struct sys_info {
     struct video_mode vmode;
     uint8_t memory_entries;
-    struct memory *memory_map;
+    struct memory memory_map[];
 } __attribute__((packed));
 
 void init_screen(struct video_mode *vmode);
 void print(const char *str);
-void printl(long l, enum colour colour);
+void printl(long l, enum colour colour, bool recurse);
 void NORETURN halt(void);
 
 void clear_screen(void);
@@ -70,6 +77,7 @@ struct display screen;
 
 void NORETURN entry32(struct sys_info *info)
 {
+    #if 0
     init_screen(&info->vmode);
     
     clear_screen();
@@ -78,9 +86,17 @@ void NORETURN entry32(struct sys_info *info)
     //char *size = "0 bytes\r\n";
     //size[0] += sizeof(void *);
     //print(size);
-    printf("%c pointer size is %d\r\n", 'C', sizeof(void *));
+    //printf("%c pointer size is %d\r\n", 'C', sizeof(void *));
     printf("%d\r\n", -12345);
-    printc("This is a test\r\n", CHAR_COLOUR(COLOUR_GREEN, COLOUR_BLACK));
+    //printc("This is a test\r\n", CHAR_COLOUR(COLOUR_GREEN, COLOUR_BLACK));
+    printf("this should be zero  <%d>\r\n", 0);
+    printf("memory count: %d\r\n", info->memory_entries);
+    printf("test\r\n");
+    int i;
+    for (i = 0; i < info->memory_entries; i++) {
+        printf("%d\t%d\t%d\r\n", info->memory_map[i].base, info->memory_map[i].length, info->memory_map[i].type);
+    }
+    #endif
     halt();
 }
 
@@ -186,15 +202,18 @@ inline void print(const char *str)
     printc(str, CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY));
 }
 
-void printl(long l, enum colour colour)
+void printl(long l, enum colour colour, bool recurse)
 {
     if (l < 0) {
         putchar('-', colour);
-        printl(l * -1, colour);
+        printl(l * -1, colour, true);
     }
     if (l > 0) {
-        printl(l / 10, colour);
+        printl(l / 10, colour, true);
         putchar('0' + l % 10, colour);
+    }
+    if (l == 0 && recurse == false) {
+        putchar('0', colour);
     }
 }
 
@@ -233,7 +252,7 @@ int printf(const char *fmt, ...)
                 switch (*c) {
                 case 'd':
                     darg = va_arg(args, int);
-                    printl(darg, colour);
+                    printl(darg, colour, false);
                     fmt_specifier = false;
                     break;
                 case 'u':

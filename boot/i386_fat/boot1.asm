@@ -148,6 +148,8 @@ get_memory_map:
     jmp .get_next_entry
     
 .next:
+    mov si, strings.mem2
+    call print
 %if 0
     test byte [memory_map.count], [memory_map.count]
     jnz .exit
@@ -231,6 +233,7 @@ gdtr:
 strings:
 .start: db 'Loaded stage 1', 0x0A, 0x0D, 0
 .msg: db 'Hello World!', 0x0A, 0x0D, 0
+.mem2: db 'BIOS call int 15h, eax=E820 failed', 0x0A, 0x0D, 0
 
 sys_info:
 video_data:
@@ -240,4 +243,4 @@ video_data:
 memory_map:
 .count: db 0
 .address: dd $ + 1
-.entries:
+.entries: 
