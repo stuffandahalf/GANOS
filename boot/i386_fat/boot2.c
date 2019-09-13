@@ -3,50 +3,14 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include "video.h"
+#include "smbios.h"
+
 //#define PROTECTED_PRINT
 
 #define NORETURN __attribute__((noreturn))
 #define PACKED __attribute__((packed))
 #define FLAG(f) ((unsigned int)(f))
-
-enum colour {
-    COLOUR_BLACK,
-    COLOUR_BLUE,
-    COLOUR_GREEN,
-    COLOUR_CYAN,
-    COLOUR_RED,
-    COLOUR_PURPLE,
-    COLOUR_BROWN,
-    COLOUR_GREY,
-    COLOUR_DARK_GREY,
-    COLOUR_LIGHT_BLUE,
-    COLOUR_LIGHT_GREEN,
-    COLOUR_LIGHT_CYAN,
-    COLOUR_LIGHT_RED,
-    COLOUR_LIGHT_PURPLE,
-    COLOUR_YELLOW,
-    COLOUR_WHITE
-};
-
-#define CHAR_COLOUR(bg, fg) ((FLAG(bg) << 4) | FLAG(fg))
-
-void printc(const char *str, enum colour colour);
-void print(const char *str);
-int printf(const char *fmt, ...);
-void NORETURN halt(void);
-
-struct video_mode {
-    uint8_t mode;
-    uint8_t columns;
-    uint8_t active_page;
-} __attribute__((packed));
-
-struct display {
-    volatile uint8_t *buffer;
-    uint16_t index;
-    uint16_t width;
-    uint16_t height;
-} __attribute__((packed));
 
 enum memory_type {
     MEMORY_TYPE_FREE = 1,
@@ -67,17 +31,19 @@ struct sys_info {
 } __attribute__((packed));
 
 void init_screen(struct video_mode *vmode);
-void print(const char *str);
-void printl(long l, enum colour colour, bool recurse);
-void NORETURN halt(void);
-
 void clear_screen(void);
+void printc(const char *str, enum colour colour);
+void print(const char *str);
+int printf(const char *fmt, ...);
+void printl(long l, enum colour colour, bool recurse);
+
+void NORETURN halt(void);
 
 struct display screen;
 
 void NORETURN entry32(struct sys_info *info)
 {
-    #if 0
+#if 1
     init_screen(&info->vmode);
     
     clear_screen();
@@ -96,7 +62,11 @@ void NORETURN entry32(struct sys_info *info)
     for (i = 0; i < info->memory_entries; i++) {
         printf("%d\t%d\t%d\r\n", info->memory_map[i].base, info->memory_map[i].length, info->memory_map[i].type);
     }
-    #endif
+#endif
+
+    struct smbios2_entry_point *smbios_entry = locate_smbios_entry();
+    printf("smbios is at address %d\r\n", (uint32_t)smbios_entry);
+    printf("smbios version is %d.%d\r\n", smbios_entry->major_version, smbios_entry->minor_version);
     halt();
 }
 
@@ -154,6 +124,30 @@ void init_screen(struct video_mode *vmode)
     }
     
     clear_screen();
+}
+
+struct smbios2_entry_point *locate_smbios_entry(void)
+{
+    uint8_t *mem = (uint8_t *)0xF0000;
+    int length;
+    int i;
+    
+    uint8_t checksum;
+    while ((uint32_t)mem < 0x100000) {
+        if (mem[0] == '_' && mem[1] == 'S' && mem[2] == 'M' && mem[3] == '_') {
+            length = mem[5];
+            checksum = 0;
+            for (i = 0; i < length; i++) {
+                checksum += mem[i];
+            }
+            if (checksum == 0) {
+                return (struct smbios2_entry_point *)mem;
+            }
+        }
+        mem += 16;
+    }
+    
+    return NULL;
 }
 
 void clear_screen(void)
@@ -217,6 +211,11 @@ void printl(long l, enum colour colour, bool recurse)
     }
 }
 
+void printx(unsigned long x, enum colour colour, bool recurse)
+{
+    
+}
+
 int printf(const char *fmt, ...)
 {
     va_list args;
@@ -262,6 +261,11 @@ int printf(const char *fmt, ...)
                 case 'c':
                     putchar((char)va_arg(args, int), colour);
                     fmt_specifier = false;
+                    break;
+                case 'X':
+                case 'p':
+                    break;
+                case 'x':
                     break;
                 }
             }
