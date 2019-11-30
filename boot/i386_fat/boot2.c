@@ -60,7 +60,7 @@ void NORETURN entry32(struct sys_info *info)
     printf("test\r\n");
     int i;
     for (i = 0; i < info->memory_entries; i++) {
-        printf("%d\t%d\t%d\r\n", info->memory_map[i].base, info->memory_map[i].length, info->memory_map[i].type);
+        printf("%u\t%u\t%u\r\n", info->memory_map[i].base, info->memory_map[i].length, info->memory_map[i].type);
     }
 #endif
 
@@ -196,6 +196,21 @@ inline void print(const char *str)
     printc(str, CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY));
 }
 
+void printul(unsigned long ul, enum colour colour, bool recurse)
+{
+    if (ul < 0) {
+        putchar('-', colour);
+        printl(ul * -1, colour, true);
+    }
+    if (ul > 0) {
+        printl(ul / 10, colour, true);
+        putchar('0' + ul % 10, colour);
+    }
+    if (ul == 0 && !recurse) {
+        putchar('0', colour);
+    }
+}
+
 void printl(long l, enum colour colour, bool recurse)
 {
     if (l < 0) {
@@ -206,7 +221,7 @@ void printl(long l, enum colour colour, bool recurse)
         printl(l / 10, colour, true);
         putchar('0' + l % 10, colour);
     }
-    if (l == 0 && recurse == false) {
+    if (l == 0 && !recurse) {
         putchar('0', colour);
     }
 }
@@ -226,6 +241,7 @@ int printf(const char *fmt, ...)
     bool escape = false;
     bool fmt_specifier = false;
     int darg;
+    unsigned int uarg;
     const char *c;
     for (c = fmt; *c; c++) {
         switch (*c) {
@@ -255,6 +271,9 @@ int printf(const char *fmt, ...)
                     fmt_specifier = false;
                     break;
                 case 'u':
+                    uarg = va_arg(args, unsigned int);
+                    printul(uarg, colour, false);
+                    fmt_specifier = false;
                     break;
                 case 'f':
                     break;
