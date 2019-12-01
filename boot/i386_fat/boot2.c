@@ -27,7 +27,7 @@ struct memory {
 struct sys_info {
     struct video_mode vmode;
     uint8_t memory_entries;
-    struct memory memory_map[];
+    struct memory *memory_map;
 } __attribute__((packed));
 
 void init_screen(struct video_mode *vmode);
@@ -40,6 +40,11 @@ void printl(long l, enum colour colour, bool recurse);
 void NORETURN halt(void);
 
 struct display screen;
+
+extern struct {
+    uint8_t count;
+    struct memory *entries;
+} memory_map;
 
 void NORETURN entry32(struct sys_info *info)
 {
@@ -55,14 +60,19 @@ void NORETURN entry32(struct sys_info *info)
     //printf("%c pointer size is %d\r\n", 'C', sizeof(void *));
     printf("%d\r\n", -12345);
     //printc("This is a test\r\n", CHAR_COLOUR(COLOUR_GREEN, COLOUR_BLACK));
-    printf("this should be zero  <%d>\r\n", 0);
-    printf("memory count: %d\r\n", info->memory_entries);
+    //printf("this should be zero  <%d>\r\n", 0);
+    /*printf("memory count: %d\r\n", info->memory_entries);
     printf("test\r\n");
     int i;
     for (i = 0; i < info->memory_entries; i++) {
         printf("%u\t%u\t%u\r\n", info->memory_map[i].base, info->memory_map[i].length, info->memory_map[i].type);
-    }
+    }*/
 #endif
+
+    printf("test hex 0x55: 0x%x\r\n", 0x55);
+    printf("test hex 0xaa: 0x%x\r\n", 0xAA);
+    printf("test hex 0xAA: 0x%X\r\n", 0xAA);
+    //printf("%p\r\n", &memory_map);
 
     struct smbios2_entry_point *smbios_entry = locate_smbios_entry();
     printf("smbios is at address %d\r\n", (uint32_t)smbios_entry);
@@ -198,15 +208,11 @@ inline void print(const char *str)
 
 void printul(unsigned long ul, enum colour colour, bool recurse)
 {
-    if (ul < 0) {
-        putchar('-', colour);
-        printl(ul * -1, colour, true);
-    }
     if (ul > 0) {
         printl(ul / 10, colour, true);
         putchar('0' + ul % 10, colour);
     }
-    if (ul == 0 && !recurse) {
+    else if (ul == 0 && !recurse) {
         putchar('0', colour);
     }
 }
@@ -226,9 +232,24 @@ void printl(long l, enum colour colour, bool recurse)
     }
 }
 
-void printx(unsigned long x, enum colour colour, bool recurse)
+void printx(unsigned long x, enum colour colour, bool recurse, bool uppercase)
 {
-    
+    if (x > 0) {
+        printx(x / 16, colour, true, uppercase);
+        unsigned char d = x % 16;
+        if (d < 10) {
+            putchar('0' + d, colour);
+        }
+        else if (uppercase) {
+            putchar('A' + d - 10, colour);
+        }
+        else {
+            putchar('a' + d - 10, colour);
+        }
+    }
+    else if (x == 0 && !recurse) {
+        putchar('0', colour);
+    }
 }
 
 int printf(const char *fmt, ...)
@@ -281,10 +302,14 @@ int printf(const char *fmt, ...)
                     putchar((char)va_arg(args, int), colour);
                     fmt_specifier = false;
                     break;
-                case 'X':
                 case 'p':
+                case 'X':
+                    darg = va_arg(args, unsigned int);
+                    printx(darg, colour, false, true);
                     break;
                 case 'x':
+                    darg = va_arg(args, unsigned int);
+                    printx(darg, colour, false, false);
                     break;
                 }
             }

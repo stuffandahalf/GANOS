@@ -3,6 +3,7 @@
     
     global _start
     global halt
+    global memory_map
     extern entry32
 
 _start:
