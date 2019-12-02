@@ -84,6 +84,7 @@ init32:
 halt:
     cli
     hlt
+    jmp halt    ; if an nmi ever awakes processor
     
     
 print:
