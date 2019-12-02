@@ -91,9 +91,15 @@ STRUC dir_entry
     .file_size: resd 1
 ENDSTRUC
 
+%if 1
 target:
 .segment: equ 0x0000
 .offset: equ 0x0500
+%else
+target:
+.segment: equ 0x0005
+.offset: equ 0x0000
+%endif
 
 scratch:
 .segment: equ 0x0000

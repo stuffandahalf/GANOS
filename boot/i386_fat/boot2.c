@@ -12,71 +12,72 @@
 #define PACKED __attribute__((packed))
 #define FLAG(f) ((unsigned int)(f))
 
+#define REBUILD64_2_32(a, b) ((a << 32) + b)
+#define REBUILD64_F(field) REBUILD64_2_32(field##_h, field##_l)
+
 enum memory_type {
     MEMORY_TYPE_FREE = 1,
     MEMORY_TYPE_RESERVED = 2
 };
 
-struct memory {
-    uint64_t base;
-    uint64_t length;
-    enum memory_type type;
-    uint32_t ext_attributes;
-} __attribute__((packed));
+struct smap_entry {
+    uint32_t base_l;
+    uint32_t base_h;
+    uint32_t length_l;
+    uint32_t length_h;
+    uint32_t type;
+    uint32_t acpi;
+} PACKED;
 
 struct sys_info {
     struct video_mode vmode;
-    uint8_t memory_entries;
-    struct memory *memory_map;
+    struct {
+        uint16_t count;
+        struct smap_entry entries[16];
+    } PACKED memory;
 } __attribute__((packed));
 
 void init_screen(struct video_mode *vmode);
 void clear_screen(void);
-void printc(const char *str, enum colour colour);
-void print(const char *str);
 int printf(const char *fmt, ...);
-void printl(long l, enum colour colour, bool recurse);
 
 void NORETURN halt(void);
 
 struct display screen;
 
-extern struct {
-    uint8_t count;
-    struct memory *entries;
-} memory_map;
+/*extern struct {
+    uint16_t count;
+    struct smap_entry entries[16];
+} __attribute__((packed)) memory_map;*/
 
-void NORETURN entry32(struct sys_info *info)
+extern struct sys_info system;
+
+void NORETURN entry32(/*struct sys_info *info*/void)
 {
-#if 1
-    init_screen(&info->vmode);
+    init_screen(&system.vmode);
     
     clear_screen();
-    print("Entered protected mode.\r\n");
-    //print("C pointer size is ");
-    //char *size = "0 bytes\r\n";
-    //size[0] += sizeof(void *);
-    //print(size);
-    //printf("%c pointer size is %d\r\n", 'C', sizeof(void *));
-    printf("%d\r\n", -12345);
-    //printc("This is a test\r\n", CHAR_COLOUR(COLOUR_GREEN, COLOUR_BLACK));
-    //printf("this should be zero  <%d>\r\n", 0);
-    /*printf("memory count: %d\r\n", info->memory_entries);
-    printf("test\r\n");
+    printf("Entered protected mode.\r\n");
+    printf("SMAP entries: %d\r\n", system.memory.count);
+    size_t available_mem = 0;
+    size_t mem_size = 0;
+    size_t reclaimable_mem = 0;
     int i;
-    for (i = 0; i < info->memory_entries; i++) {
-        printf("%u\t%u\t%u\r\n", info->memory_map[i].base, info->memory_map[i].length, info->memory_map[i].type);
-    }*/
-#endif
-
-    printf("test hex 0x55: 0x%x\r\n", 0x55);
-    printf("test hex 0xaa: 0x%x\r\n", 0xAA);
-    printf("test hex 0xAA: 0x%X\r\n", 0xAA);
-    //printf("%p\r\n", &memory_map);
+    for (i = 0; i < system.memory.count; i++) {
+        printf("[base: %u, length: %u]\ttype: %u\text_flags: %u\r\n", REBUILD64_F(system.memory.entries[i].base), REBUILD64_F(system.memory.entries[i].length),
+            system.memory.entries[i].type, system.memory.entries[i].acpi);
+            
+        mem_size += REBUILD64_F(system.memory.entries[i].length);
+    }
+    printf("Total system memory: %u bytes\r\n", mem_size);
+    
 
     struct smbios2_entry_point *smbios_entry = locate_smbios_entry();
-    printf("smbios is at address %d\r\n", (uint32_t)smbios_entry);
+    printf("smbios is at address 0x%p\r\n", smbios_entry);
     printf("smbios version is %d.%d\r\n", smbios_entry->major_version, smbios_entry->minor_version);
+    
+    //printf("argument mmap entries is at %p\r\n", &info->memory_map);
+    //printf("real mmap entries is at %p\r\n", &memory_map.entries);
     halt();
 }
 
@@ -201,15 +202,39 @@ void printc(const char *str, enum colour colour)
     }
 }
 
+#if 0
 inline void print(const char *str)
 {
     printc(str, CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY));
 }
+#endif
 
+#define print_fmt(fmt, T) \
+void print##fmt(T t, enum colour colour, bool recurse) \
+{ \
+    if (t < 0) { \
+        putchar('-', colour); \
+        print##fmt(t * -1, colour, true); \
+    } \
+    else if (t > 0) { \
+        print##fmt(t / 10, colour, true); \
+        putchar('0' + t % 10, colour); \
+    } \
+    else if (t == 0 && !recurse) { \
+        putchar('0', colour); \
+    } \
+}
+
+print_fmt(ul, unsigned long)
+print_fmt(l, long)
+
+#undef print_fmt
+
+#if 0
 void printul(unsigned long ul, enum colour colour, bool recurse)
 {
     if (ul > 0) {
-        printl(ul / 10, colour, true);
+        printul(ul / 10, colour, true);
         putchar('0' + ul % 10, colour);
     }
     else if (ul == 0 && !recurse) {
@@ -231,6 +256,7 @@ void printl(long l, enum colour colour, bool recurse)
         putchar('0', colour);
     }
 }
+#endif
 
 void printx(unsigned long x, enum colour colour, bool recurse, bool uppercase)
 {

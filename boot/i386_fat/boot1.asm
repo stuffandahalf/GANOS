@@ -3,7 +3,7 @@
     
     global _start
     global halt
-    global memory_map
+    global system
     extern entry32
 
 _start:
@@ -116,11 +116,6 @@ enable_a20:
 .exit:
     mov si, .success_str
     call print
-
-    mov si, strings.msg
-    call print
-    
-    ;jmp entry
     
 get_video_mode:
     mov ah, 0x0F
@@ -131,73 +126,31 @@ get_video_mode:
     add di, 2
     mov [di], bh
   
-%if 0
 get_memory_map:
-.try_E820:
-    mov di, memory_map.entries
-    xor ebx, ebx
-    mov edx, 0x534D4159
-.get_next_entry:
-    mov ecx, 24
-    mov eax, 0xE820
-    int 0x15
-    test ebx, ebx
-    jz .next
-    jc .next
-    xor ch, ch
-    add di, 24
-    inc byte [memory_map.count]
-    jmp .get_next_entry
+    ;call try_e820h
+    ;jnc .success
     
-.next:
-    mov si, strings.mem2
-    call print
-%if 0
-    test byte [memory_map.count], [memory_map.count]
-    jnz .exit
-    
-.try_E801:
-    mov ax, 0xE801
-    int 0x15
-    
-.conventional_memory:
-    int 0x12
-    add di, 12
-    stosb
-    inc byte [memory_map.count]
-%endif
-.exit:
-%endif
+.int12h:
+    mov word [memory_map.count], 1
 
-%if 0
-get_memory_map:
-.try_E820:
+    xor eax, eax
+    int 0x12
+    shl eax, 10
+    
     xor di, di
     mov es, di
     mov di, memory_map.entries
-    xor ebx, ebx
-    mov edx, 0x534D4150
-.E820_lp:
-    mov eax, 0xE820
-    mov ecx, 24
-    int 0x15
-    jc .E820_end
     
+    ;mov dword [es:di], 0
+    mov dword [es:di + 8], eax
+    mov dword [es:di + 16], 1
     mov dword [es:di + 20], 1
     
-    ;inc [memory_map.count]
-    mov ecx, [memory_map.count]
-    inc ecx
-    mov [memory_map.count], ecx
     add di, 24
-    jmp short .E820_lp
-.E820_end:
-%endif
-
-    xor di, di
-    mov es, di
-    mov di, memory_map.entries
-    call do_e820
+    
+    call try_e801h
+    
+.success:
     
 go32:
     cli
@@ -219,13 +172,9 @@ init32:
     mov ss, ax
     mov esp, 0x7C00
     
-    
-    
-    ;mov eax, video_data
-    mov eax, sys_info
-    push eax
+    ;mov eax, sys_info
+    ;push eax
     call entry32
-    
     
     [bits 16]
 halt:
@@ -246,52 +195,122 @@ print:
     pop ax
     ret
 
-mmap_ent: equ memory_map.count
-do_e820:
-        mov di, 0x8004          ; Set di to 0x8004. Otherwise this code will get stuck in `int 0x15` after some entries are fetched 
-	xor ebx, ebx		; ebx must be 0 to start
-	xor bp, bp		; keep an entry count in bp
-	mov edx, 0x0534D4150	; Place "SMAP" into edx
-	mov eax, 0xe820
-	mov [es:di + 20], dword 1	; force a valid ACPI 3.X entry
-	mov ecx, 24		; ask for 24 bytes
-	int 0x15
-	jc short .failed	; carry set on first call means "unsupported function"
-	mov edx, 0x0534D4150	; Some BIOSes apparently trash this register?
-	cmp eax, edx		; on success, eax must have been reset to "SMAP"
-	jne short .failed
-	test ebx, ebx		; ebx = 0 implies list is only 1 entry long (worthless)
-	je short .failed
-	jmp short .jmpin
-.e820lp:
-	mov eax, 0xe820		; eax, ecx get trashed on every int 0x15 call
-	mov [es:di + 20], dword 1	; force a valid ACPI 3.X entry
-	mov ecx, 24		; ask for 24 bytes again
-	int 0x15
-	jc short .e820f		; carry set means "end of list already reached"
-	mov edx, 0x0534D4150	; repair potentially trashed register
-.jmpin:
-	jcxz .skipent		; skip any 0 length entries
-	cmp cl, 20		; got a 24 byte ACPI 3.X response?
-	jbe short .notext
-	test byte [es:di + 20], 1	; if so: is the "ignore this data" bit clear?
-	je short .skipent
-.notext:
-	mov ecx, [es:di + 8]	; get lower uint32_t of memory region length
-	or ecx, [es:di + 12]	; "or" it with upper uint32_t to test for zero
-	jz .skipent		; if length uint64_t is 0, skip entry
-	inc bp			; got a good entry: ++count, move to next storage spot
-	add di, 24
-.skipent:
-	test ebx, ebx		; if ebx resets to 0, list is complete
-	jne short .e820lp
-.e820f:
-	mov [mmap_ent], bp	; store the entry count
-	clc			; there is "jc" on end of list to this point, so the carry must be cleared
-	ret
-.failed:
-	stc			; "function unsupported" error exit
-	ret
+try_e820h:
+    push es
+    push di
+    push bp
+    push eax
+    push ebx
+    push ecx
+    push edx
+
+.init:
+    xor bp, bp
+    xor di, di
+    mov es, di
+    mov di, memory_map.entries
+    xor ebx, ebx
+    mov edx, 0x534D4150
+    
+.loop:
+    mov eax, 0xE820
+    mov ecx, 24
+    int 0x15
+    jc .fail
+    
+    inc bp
+    mov dword [es:di + 20], 1
+    test ebx, ebx
+    jz .done
+    
+    add di, 24
+    jmp .loop
+    
+.fail:
+    stc
+    push si
+    mov si, .fail_str
+    call print
+    pop si
+    jmp .exit
+    
+.done:
+    mov [memory_map.count], bp
+
+    clc
+    push si
+    mov si, .success_str
+    call print
+    pop si
+    
+.exit:
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    pop bp
+    pop di
+    pop es
+    ret
+    
+.fail_str: db `E820h, 15h failed\r\n`, 0
+.success_str: db `E820h, 15h, succeeded\r\n`, 0
+    
+try_e801h:
+    push bp
+
+    mov ax, 0xE801
+    int 0x15
+    
+    ; figure out which set of registers to use
+    mov bp, ax
+    and bp, bx
+    jnz .cx_dx
+    
+.ax_bx:
+    mov cx, ax
+    mov dx, bx
+    
+.cx_dx:
+    xor eax, eax
+    mov ax, [memory_map.count]  ; eax should be 1
+
+    shl ecx, 10
+    shl edx, 16
+
+    mov dword [es:di], 0x100000     ; base 1M
+    mov [es:di + 8], ecx            ; length = cx * 1024
+    ;mov dword [es:di + 16], 1       ; type = free
+    ;mov dword [es:di + 20], 1       ; acpi flag
+    mov [es:di + 16], eax           ; type = free
+    mov [es:di + 20], eax           ; acpi flag
+    
+    add di, 24
+    
+    mov dword [es:di], 0x1000000    ; base 16M
+    mov [es:di + 8], edx            ; length = edx * 64 * 1024
+    mov [es:di + 16], eax           ; type = free
+    mov [es:di + 20], eax           ; acpi flag
+    ;mov dword [es:di + 16], 1       ; type = free
+    ;mov dword [es:di + 20], 1       ; acpi flag
+    
+    add ax, 2
+    mov [memory_map.count], ax
+    
+.success:
+    push si
+    mov si, .success_str
+    call print
+    pop si
+
+    clc
+    
+.exit:
+    pop bp
+    ret
+    
+.success_str: db `E801h Succeeded\r\n`, 0
+.fail_str: db `E801h Failed\r\n`, 0
 
 gdt:
 .null:
@@ -315,13 +334,12 @@ strings:
 .msg: db 'Hello World!', 0x0A, 0x0D, 0
 .mem2: db 'BIOS call int 15h, eax=E820 failed', 0x0A, 0x0D, 0
 
-sys_info:
+system:
 video_data:
 .mode: db 0
 .columns: db 0
 .active_page: db 0
 memory_map:
-.count: db 0
-.address: dd memory_map.entries;$ + 1
-.entries: 
+.count: dw 0
+.entries: resb 24 * 16  ; space for 16 memory entries
 
