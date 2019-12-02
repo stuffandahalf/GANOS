@@ -27,6 +27,7 @@ bootld.bin: $(BOOTLD_OBJS)
 	#~/bin/cross/bin/i686-elf-gcc -T boot1.ld -o $@ -ffreestanding -O2 -nostdlib $< -lgcc
 	~/bin/cross/bin/i686-elf-gcc -Ttext 0x500 -o boot1.pe $(BOOTLD_OBJS) -nostdlib
 	objcopy -O binary boot1.pe $@
+	rm boot1.pe
 
 #boot.img: boot0.bin hello.bin efi.bin ../../tools/configurator/configure
 #	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=262144

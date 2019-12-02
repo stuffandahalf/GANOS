@@ -9,6 +9,96 @@
 _start:
     mov si, strings.start
     call print
+    jc halt
+
+try_enable_a20:
+    call enable_a20
+    
+get_video_mode:
+    mov ah, 0x0F
+    int 0x10
+    
+    mov di, video_data
+    mov [di], ax
+    add di, 2
+    mov [di], bh
+  
+get_memory_map:
+    call mmap_e820h
+    jnc .success
+    
+.int12h:
+    mov word [memory_map.count], 1
+
+    xor eax, eax
+    int 0x12
+    shl eax, 10
+    
+    xor di, di
+    mov es, di
+    mov di, memory_map.entries
+    
+    ;mov dword [es:di], 0
+    mov dword [es:di + 8], eax
+    mov dword [es:di + 16], 1
+    mov dword [es:di + 20], 1
+    
+    add di, 24
+    
+    call mmap_e801h
+    jnc .success
+    
+    call mmap_88h
+    jnc .success
+    
+    mov si, strings.mem_probe_failed
+    call print
+    
+.success:
+    
+go32:
+    cli
+    lgdt [gdtr]
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+    jmp 08h:init32
+    
+    [bits 32]
+init32:
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    
+    mov ss, ax
+    mov esp, 0x7C00
+    
+    ;mov eax, sys_info
+    ;push eax
+    call entry32
+    
+    
+    [bits 16]
+halt:
+    cli
+    hlt
+    
+    
+print:
+    push ax
+    mov ah, 0x0E
+.loop:
+    lodsb
+    test al, al ; if al == 0
+    je .end
+    int 0x10
+    jmp .loop
+.end:
+    pop ax
+    ret
+
 
 enable_a20:
     call .check
@@ -108,7 +198,8 @@ enable_a20:
 .fail:
     mov si, .fail_str
     call print
-    jmp halt
+    stc
+    ret
 
 .fail_str: db `a20 failed\r\n`, 0
 .success_str: db `a20 enabled\r\n`, 0
@@ -116,86 +207,10 @@ enable_a20:
 .exit:
     mov si, .success_str
     call print
-    
-get_video_mode:
-    mov ah, 0x0F
-    int 0x10
-    
-    mov di, video_data
-    mov [di], ax
-    add di, 2
-    mov [di], bh
-  
-get_memory_map:
-    ;call try_e820h
-    ;jnc .success
-    
-.int12h:
-    mov word [memory_map.count], 1
-
-    xor eax, eax
-    int 0x12
-    shl eax, 10
-    
-    xor di, di
-    mov es, di
-    mov di, memory_map.entries
-    
-    ;mov dword [es:di], 0
-    mov dword [es:di + 8], eax
-    mov dword [es:di + 16], 1
-    mov dword [es:di + 20], 1
-    
-    add di, 24
-    
-    call try_e801h
-    
-.success:
-    
-go32:
-    cli
-    lgdt [gdtr]
-    mov eax, cr0
-    or al, 1
-    mov cr0, eax
-    jmp 08h:init32
-    
-    [bits 32]
-init32:
-
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    
-    mov ss, ax
-    mov esp, 0x7C00
-    
-    ;mov eax, sys_info
-    ;push eax
-    call entry32
-    
-    [bits 16]
-halt:
-    cli
-    hlt
-    
-    
-print:
-    push ax
-    mov ah, 0x0E
-.loop:
-    lodsb
-    test al, al ; if al == 0
-    je .end
-    int 0x10
-    jmp .loop
-.end:
-    pop ax
     ret
 
-try_e820h:
+
+mmap_e820h:
     push es
     push di
     push bp
@@ -254,13 +269,15 @@ try_e820h:
     ret
     
 .fail_str: db `E820h, 15h failed\r\n`, 0
-.success_str: db `E820h, 15h, succeeded\r\n`, 0
+.success_str: db `E820h, 15h succeeded\r\n`, 0
     
-try_e801h:
+mmap_e801h:
     push bp
 
     mov ax, 0xE801
     int 0x15
+    
+    jc .fail
     
     ; figure out which set of registers to use
     mov bp, ax
@@ -273,15 +290,13 @@ try_e801h:
     
 .cx_dx:
     xor eax, eax
-    mov ax, [memory_map.count]  ; eax should be 1
+    mov ax, [memory_map.count]  ; eax should be 1, use it to initialize fields
 
     shl ecx, 10
     shl edx, 16
 
     mov dword [es:di], 0x100000     ; base 1M
     mov [es:di + 8], ecx            ; length = cx * 1024
-    ;mov dword [es:di + 16], 1       ; type = free
-    ;mov dword [es:di + 20], 1       ; acpi flag
     mov [es:di + 16], eax           ; type = free
     mov [es:di + 20], eax           ; acpi flag
     
@@ -291,8 +306,6 @@ try_e801h:
     mov [es:di + 8], edx            ; length = edx * 64 * 1024
     mov [es:di + 16], eax           ; type = free
     mov [es:di + 20], eax           ; acpi flag
-    ;mov dword [es:di + 16], 1       ; type = free
-    ;mov dword [es:di + 20], 1       ; acpi flag
     
     add ax, 2
     mov [memory_map.count], ax
@@ -309,8 +322,58 @@ try_e801h:
     pop bp
     ret
     
-.success_str: db `E801h Succeeded\r\n`, 0
-.fail_str: db `E801h Failed\r\n`, 0
+.fail:
+    push si
+    mov si, .fail_str
+    call print
+    pop si
+    stc
+    jmp .exit
+    
+.success_str: db `E801h, int 15h succeeded\r\n`, 0
+.fail_str: db `E801h, int 15h failed\r\n`, 0
+
+mmap_88h:
+    clc
+    xor eax, eax
+    mov ah, 0x88
+    int 0x15
+    jc .fail
+    test ax, ax
+    jz .fail
+    
+    xor ebx, ebx
+    shl eax, 10
+    
+    mov bx, [memory_map.count]
+    mov dword [es:di], 0x100000 ; memory starting from 1M
+    mov [es:di + 8], eax
+    mov [es:di + 16], ebx
+    mov [es:di + 20], ebx
+    
+    inc bx
+    mov [memory_map.count], bx
+    
+.success:
+    push si
+    mov si, .success_str
+    call print
+    pop si
+    clc
+    
+.exit:
+    ret
+    
+.fail:
+    push si
+    mov si, .fail_str
+    call print
+    pop si
+    stc
+    ret ; shorter than jmp .exit
+
+.fail_str: db `88h, int 15h failed\r\n`, 0
+.success_str: db `88h, int 15h succeeded\r\n`, 0
 
 gdt:
 .null:
@@ -332,7 +395,8 @@ gdtr:
 strings:
 .start: db 'Loaded stage 1', 0x0A, 0x0D, 0
 .msg: db 'Hello World!', 0x0A, 0x0D, 0
-.mem2: db 'BIOS call int 15h, eax=E820 failed', 0x0A, 0x0D, 0
+;.mem2: db 'BIOS call int 15h, eax=E820 failed', 0x0A, 0x0D, 0
+.mem_probe_failed: db `Failed to get memory over 640k\r\n`, 0
 
 system:
 video_data:

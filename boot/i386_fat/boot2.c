@@ -6,8 +6,6 @@
 #include "video.h"
 #include "smbios.h"
 
-//#define PROTECTED_PRINT
-
 #define NORETURN __attribute__((noreturn))
 #define PACKED __attribute__((packed))
 #define FLAG(f) ((unsigned int)(f))
@@ -35,7 +33,7 @@ struct sys_info {
         uint16_t count;
         struct smap_entry entries[16];
     } PACKED memory;
-} __attribute__((packed));
+} PACKED;
 
 void init_screen(struct video_mode *vmode);
 void clear_screen(void);
@@ -44,12 +42,6 @@ int printf(const char *fmt, ...);
 void NORETURN halt(void);
 
 struct display screen;
-
-/*extern struct {
-    uint16_t count;
-    struct smap_entry entries[16];
-} __attribute__((packed)) memory_map;*/
-
 extern struct sys_info system;
 
 void NORETURN entry32(/*struct sys_info *info*/void)
@@ -64,12 +56,20 @@ void NORETURN entry32(/*struct sys_info *info*/void)
     size_t reclaimable_mem = 0;
     int i;
     for (i = 0; i < system.memory.count; i++) {
-        printf("[base: %u, length: %u]\ttype: %u\text_flags: %u\r\n", REBUILD64_F(system.memory.entries[i].base), REBUILD64_F(system.memory.entries[i].length),
-            system.memory.entries[i].type, system.memory.entries[i].acpi);
+        /*printf("[base: %u, length: %u]\ttype: %u\text_flags: %u\r\n", REBUILD64_F(system.memory.entries[i].base), REBUILD64_F(system.memory.entries[i].length),
+            system.memory.entries[i].type, system.memory.entries[i].acpi);*/
             
         mem_size += REBUILD64_F(system.memory.entries[i].length);
+        if (system.memory.entries[i].type == 1) {
+            available_mem += REBUILD64_F(system.memory.entries[i].length);
+        }
+        else if (system.memory.entries[i].type == 3) {
+            reclaimable_mem += REBUILD64_F(system.memory.entries[i].length);
+        }
     }
     printf("Total system memory: %u bytes\r\n", mem_size);
+    printf("Usable system memory: %u bytes\r\n", available_mem);
+    printf("Reclaimable memory: %u bytes\r\n", reclaimable_mem);
     
 
     struct smbios2_entry_point *smbios_entry = locate_smbios_entry();
@@ -202,13 +202,6 @@ void printc(const char *str, enum colour colour)
     }
 }
 
-#if 0
-inline void print(const char *str)
-{
-    printc(str, CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY));
-}
-#endif
-
 #define print_fmt(fmt, T) \
 void print##fmt(T t, enum colour colour, bool recurse) \
 { \
@@ -285,10 +278,7 @@ int printf(const char *fmt, ...)
 
     enum colour colour = CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY);
 
-    bool escape = false;
     bool fmt_specifier = false;
-    int darg;
-    unsigned int uarg;
     const char *c;
     for (c = fmt; *c; c++) {
         switch (*c) {
@@ -303,9 +293,6 @@ int printf(const char *fmt, ...)
                 putchar(0, colour);
             }
             break;
-        case '\\':
-            escape = true;
-            break;
         case '%':
             fmt_specifier = true;
             break;
@@ -313,13 +300,11 @@ int printf(const char *fmt, ...)
             if (fmt_specifier) {
                 switch (*c) {
                 case 'd':
-                    darg = va_arg(args, int);
-                    printl(darg, colour, false);
+                    printl(va_arg(args, int), colour, false);
                     fmt_specifier = false;
                     break;
                 case 'u':
-                    uarg = va_arg(args, unsigned int);
-                    printul(uarg, colour, false);
+                    printul(va_arg(args, unsigned long), colour, false);
                     fmt_specifier = false;
                     break;
                 case 'f':
@@ -330,12 +315,10 @@ int printf(const char *fmt, ...)
                     break;
                 case 'p':
                 case 'X':
-                    darg = va_arg(args, unsigned int);
-                    printx(darg, colour, false, true);
+                    printx(va_arg(args, unsigned long), colour, false, true);
                     break;
                 case 'x':
-                    darg = va_arg(args, unsigned int);
-                    printx(darg, colour, false, false);
+                    printx(va_arg(args, unsigned long), colour, false, false);
                     break;
                 }
             }
