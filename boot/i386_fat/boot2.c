@@ -15,7 +15,8 @@
 
 enum memory_type {
     MEMORY_TYPE_FREE = 1,
-    MEMORY_TYPE_RESERVED = 2
+    MEMORY_TYPE_RESERVED = 2,
+    MEMORY_TYPE_ACPI_RECLAIMABLE = 3
 };
 
 struct smap_entry {
@@ -185,19 +186,19 @@ void printc(const char *str, enum colour colour)
     const char *c;
     for (c = str; *c != '\0'; c++) {
         switch (*c) {
-            case '\t':
-                for (i = 0; i < 4; i++) {
-                    putchar(0, colour);
-                }
-                break;
-            case '\r':
-                screen.index -= (screen.index % (screen.width * 2));
-                break;
-            case '\n':
-                screen.index += (screen.width << 1);
-                break;
-            default:
-                putchar(*c, colour);
+        case '\t':
+            for (i = 0; i < 4; i++) {
+                putchar(0, colour);
+            }
+            break;
+        case '\r':
+            screen.index -= (screen.index % (screen.width * 2));
+            break;
+        case '\n':
+            screen.index += (screen.width << 1);
+            break;
+        default:
+            putchar(*c, colour);
         }
     }
 }
