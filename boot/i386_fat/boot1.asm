@@ -7,6 +7,8 @@
     extern entry32
 
 _start:
+    mov [drive_num], dl
+
     mov si, strings.start
     call print
     jc halt
@@ -407,4 +409,5 @@ video_data:
 memory_map:
 .count: dw 0
 .entries: resb 24 * 16  ; space for 16 memory entries
+drive_num: db 0
 

@@ -124,6 +124,7 @@ _start:
 
 init:
     mov [data.drive_num], dl    ; Preserve drive number of loading drive
+    push dx
 
 check_int13_extensions:
     mov ah, disk_io.check_extension_function
@@ -227,6 +228,8 @@ load_file:
     mov di, target.offset
     call load_file_from_cluster
     
+    pop dx
+    ;mov dl, [data.drive_num]
     ;jmp halt
     jmp target.segment:target.offset
 

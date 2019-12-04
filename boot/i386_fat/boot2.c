@@ -34,6 +34,7 @@ struct sys_info {
         uint16_t count;
         struct smap_entry entries[16];
     } PACKED memory;
+    uint8_t drive_num;
 } PACKED;
 
 void init_screen(struct video_mode *vmode);
@@ -76,6 +77,8 @@ void NORETURN entry32(/*struct sys_info *info*/void)
     struct smbios2_entry_point *smbios_entry = locate_smbios_entry();
     printf("smbios is at address 0x%p\r\n", smbios_entry);
     printf("smbios version is %d.%d\r\n", smbios_entry->major_version, smbios_entry->minor_version);
+    
+    printf("Drive number is %Xh\r\n", system.drive_num);
     
     //printf("argument mmap entries is at %p\r\n", &info->memory_map);
     //printf("real mmap entries is at %p\r\n", &memory_map.entries);
@@ -302,17 +305,17 @@ int printf(const char *fmt, ...)
                 switch (*c) {
                 case 'd':
                     printl(va_arg(args, int), colour, false);
-                    fmt_specifier = false;
+                    //fmt_specifier = false;
                     break;
                 case 'u':
                     printul(va_arg(args, unsigned long), colour, false);
-                    fmt_specifier = false;
+                    //fmt_specifier = false;
                     break;
                 case 'f':
                     break;
                 case 'c':
                     putchar((char)va_arg(args, int), colour);
-                    fmt_specifier = false;
+                    //fmt_specifier = false;
                     break;
                 case 'p':
                 case 'X':
@@ -322,6 +325,7 @@ int printf(const char *fmt, ...)
                     printx(va_arg(args, unsigned long), colour, false, false);
                     break;
                 }
+                fmt_specifier = false;
             }
             else {
                 putchar(*c, colour);
