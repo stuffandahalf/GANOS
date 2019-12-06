@@ -34,19 +34,32 @@ struct sys_info {
         uint16_t count;
         struct smap_entry entries[16];
     } PACKED memory;
-    uint8_t drive_num;
+    struct {
+        uint8_t number;
+        uint16_t sector_size;
+    } PACKED drive;
 } PACKED;
 
 void init_screen(struct video_mode *vmode);
 void clear_screen(void);
 int printf(const char *fmt, ...);
 
-void NORETURN halt(void);
+NORETURN
+void halt(void);
 
+/*extern struct {
+    uint8_t size;
+    uint8_t unsused;
+    uint16_t sector_count;
+    uint16_t segment;
+    uint16_t offset;
+    uint64_t start_lba;
+} PACKED int13h_ext_pkt;*/
 struct display screen;
 extern struct sys_info system;
 
-void NORETURN entry32(/*struct sys_info *info*/void)
+NORETURN
+void entry32(/*struct sys_info *info*/void)
 {
     init_screen(&system.vmode);
     
@@ -78,7 +91,8 @@ void NORETURN entry32(/*struct sys_info *info*/void)
     printf("smbios is at address 0x%p\r\n", smbios_entry);
     printf("smbios version is %d.%d\r\n", smbios_entry->major_version, smbios_entry->minor_version);
     
-    printf("Drive number is %Xh\r\n", system.drive_num);
+    printf("Drive number is %Xh\r\n", system.drive.number);
+    printf("Bytes per sector is %u\r\n", system.drive.sector_size);
     
     //printf("argument mmap entries is at %p\r\n", &info->memory_map);
     //printf("real mmap entries is at %p\r\n", &memory_map.entries);

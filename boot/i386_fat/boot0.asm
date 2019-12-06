@@ -130,7 +130,8 @@ check_int13_extensions:
     mov ah, disk_io.check_extension_function
     mov bx, 0x55AA
     int disk_io.interrupt
-    jc halt
+    ;jc halt
+    jc load_gpt_hdr
         
 read_drive_params:
     mov ah, disk_io.ext_param_function

@@ -6,8 +6,17 @@
     global system
     extern entry32
 
+; print the string stored
+; at argument 1 while preserving si
+%macro print_s 1
+    push si
+    mov si, %1
+    call print
+    pop si
+%endmacro 
+
 _start:
-    mov [drive_num], dl
+    mov [drive.num], dl
 
     mov si, strings.start
     call print
@@ -57,6 +66,9 @@ get_memory_map:
     call print
     
 .success:
+
+    call disk_io_init
+    ;jmp halt
     
 go32:
     cli
@@ -246,20 +258,14 @@ mmap_e820h:
     
 .fail:
     stc
-    push si
-    mov si, .fail_str
-    call print
-    pop si
+    print_s .fail_str
     jmp .exit
     
 .done:
     mov [memory_map.count], bp
-
     clc
-    push si
-    mov si, .success_str
-    call print
-    pop si
+    
+    print_s .success_str
     
 .exit:
     pop edx
@@ -314,11 +320,7 @@ mmap_e801h:
     mov [memory_map.count], ax
     
 .success:
-    push si
-    mov si, .success_str
-    call print
-    pop si
-
+    print_s .success_str
     clc
     
 .exit:
@@ -326,10 +328,7 @@ mmap_e801h:
     ret
     
 .fail:
-    push si
-    mov si, .fail_str
-    call print
-    pop si
+    print_s .fail_str
     stc
     jmp .exit
     
@@ -358,25 +357,190 @@ mmap_88h:
     mov [memory_map.count], bx
     
 .success:
-    push si
-    mov si, .success_str
-    call print
-    pop si
+    print_s .success_str
     clc
     
 .exit:
     ret
     
 .fail:
-    push si
-    mov si, .fail_str
-    call print
-    pop si
+    print_s .fail_str
     stc
     ret ; shorter than jmp .exit
 
 .fail_str: db `88h, int 15h failed\r\n`, 0
 .success_str: db `88h, int 15h succeeded\r\n`, 0
+
+DISK_IO_TIMEOUT: equ 3
+
+; this is the variable that contains the address
+; of the actual disk routine to use
+; parameters are es:
+disk_io: dw 0
+
+; dl = drive number
+disk_io_init:
+    push ax
+    push bx
+    push dx
+    
+    mov ah, 0x41
+    mov bx, 0x55AA
+    int 0x13 ; check extensions present
+    
+    jnc .present
+    
+.not_present:
+    mov word [disk_io], chs_read
+    
+    print_s .legacy_str
+    
+    push es
+    push di
+    
+    xor di, di
+    mov es, di
+    mov ah, 0x08
+    int 0x13
+    
+    inc dh
+    mov [chs_drive_params.heads], dh
+    
+    mov dh, cl
+    and dh, 0x1F
+    mov [chs_drive_params.sectors_per_track], dh
+    
+    shr cl, 6
+    and cl, 0x2
+    mov dh, cl
+    mov cl, ch
+    mov ch, dl
+    inc cx
+    
+    mov [chs_drive_params.cylinders], cx
+    
+    pop di
+    pop es
+    
+    jmp .exit
+    
+.present:
+    mov word [disk_io], lba_read
+    
+    print_s .extension_str
+    
+    push ds
+    push si
+    
+    xor si, si
+    mov ds, si
+    mov si, ext_drive_params
+    mov ah, 0x48
+    int 0x13 ; get drive properties
+    mov ax, [ext_drive_params.sector_size]
+    mov [drive.sector_size], ax
+    
+    pop si
+    pop ds
+    
+.exit:
+    pop dx
+    pop bx
+    pop ax
+    ret
+    
+chs_drive_params:
+.heads: db 0
+.cylinders: dw 0
+.sectors_per_track: db 0
+    
+ext_drive_params:
+.size: dw 0x1E
+.flags: dw 0
+.cylinders: dd 0
+.heads: dd 0
+.sectors_per_track: dd 0
+.sectors: dq 0
+.sector_size: dw 0
+.edd_config: dd 0
+    
+.legacy_str: db `Using CHS disk addressing\r\n`, 0
+.extension_str: db `Using int 13h extensions\r\n`, 0
+    
+chs_read:
+    push eax
+    push ebx
+    push ecx
+    
+.convert:
+    mov edx, [int13h_ext_pkt.starting_sector + 4]
+    mov eax, [int13h_ext_pkt.starting_sector]
+    div [chs_drive_params.sectors_per_track]    ; eax = tmp, edx = sectors - 1
+    inc edx ; sectors
+    mov [chs_tmp.sector], edx
+    
+    push eax
+    pop ax
+    pop dx
+    div [chs_drive_params.heads]
+    
+    mov [chs_tmp.head], dx
+    mov [chs_tmp.cyl], ax
+    
+.exit:
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+
+chs_tmp:
+.cyl: dw 0
+.sector: dd 0
+.head: db 0
+
+; packet should be populated by caller
+; dl = drive number
+; returns cx = sectors read
+lba_read:
+    push ax
+    push es
+    push di
+    
+    mov cx, DISK_IO_TIMEOUT
+    
+.rpt:
+    mov ah, 0x42
+    xor di, di
+    mov es, di
+    mov di, int13h_ext_pkt
+    int 0x13
+    jnc .pre_exit
+    
+    dec cx
+    jcxz .fail
+    jmp .rpt
+    
+.pre_exit:
+    clc
+    mov cx, [int13h_ext_pkt.sector_count]
+    
+.exit:
+    pop di
+    pop es
+    pop ax
+    ret
+    
+.fail:
+    stc
+    jmp .exit
+    
+int13h_ext_pkt:
+.size: db 0x10
+.unused: db 0
+.sector_count: dw 0
+.offset: dw 0
+.segment: dw 0
+.starting_sector: dq 0
 
 gdt:
 .null:
@@ -409,5 +573,7 @@ video_data:
 memory_map:
 .count: dw 0
 .entries: resb 24 * 16  ; space for 16 memory entries
-drive_num: db 0
+drive:
+.num: db 0
+.sector_size: dw 512
 
