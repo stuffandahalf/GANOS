@@ -67,7 +67,7 @@ get_memory_map:
     
 .success:
 
-    call disk_io_init
+    ;call disk_io_init
     ;jmp halt
     
 go32:
@@ -371,6 +371,7 @@ mmap_88h:
 .fail_str: db `88h, int 15h failed\r\n`, 0
 .success_str: db `88h, int 15h succeeded\r\n`, 0
 
+%if 0
 DISK_IO_TIMEOUT: equ 3
 
 ; this is the variable that contains the address
@@ -449,10 +450,13 @@ disk_io_init:
     pop ax
     ret
     
+.legacy_str: db `Using CHS disk addressing\r\n`, 0
+.extension_str: db `Using int 13h extensions\r\n`, 0
+    
 chs_drive_params:
 .heads: db 0
 .cylinders: dw 0
-.sectors_per_track: db 0
+.sectors_per_track: dd 0
     
 ext_drive_params:
 .size: dw 0x1E
@@ -463,9 +467,6 @@ ext_drive_params:
 .sectors: dq 0
 .sector_size: dw 0
 .edd_config: dd 0
-    
-.legacy_str: db `Using CHS disk addressing\r\n`, 0
-.extension_str: db `Using int 13h extensions\r\n`, 0
     
 chs_read:
     push eax
@@ -541,6 +542,7 @@ int13h_ext_pkt:
 .offset: dw 0
 .segment: dw 0
 .starting_sector: dq 0
+%endif
 
 gdt:
 .null:

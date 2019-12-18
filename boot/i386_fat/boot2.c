@@ -64,6 +64,7 @@ void entry32(/*struct sys_info *info*/void)
     init_screen(&system.vmode);
     
     clear_screen();
+    //cpuid();
     printf("Entered protected mode.\r\n");
     printf("SMAP entries: %d\r\n", system.memory.count);
     size_t available_mem = 0;
@@ -99,7 +100,14 @@ void entry32(/*struct sys_info *info*/void)
     halt();
 }
 
-
+void cpuid()
+{
+    uint32_t cpu_brand[13] = { 0 };
+    __asm__("cpuid" : "=a"(cpu_brand[0]), "=b"(cpu_brand[1]), "=c"(cpu_brand[2]), "=d"(cpu_brand[3]) : "a"(0x80000002));
+    __asm__("cpuid" : "=a"(cpu_brand[4]), "=b"(cpu_brand[5]), "=c"(cpu_brand[6]), "=d"(cpu_brand[7]) : "a"(0x80000003));
+    __asm__("cpuid" : "=a"(cpu_brand[8]), "=b"(cpu_brand[9]), "=c"(cpu_brand[10]), "=d"(cpu_brand[11]) : "a"(0x80000004));
+    printf("%s\r\n", (const char *)cpu_brand);
+}
 void init_screen(struct video_mode *vmode)
 {
     screen.index = 0;
@@ -297,6 +305,7 @@ int printf(const char *fmt, ...)
     enum colour colour = CHAR_COLOUR(COLOUR_BLACK, COLOUR_GREY);
 
     bool fmt_specifier = false;
+    const char *sarg;
     const char *c;
     for (c = fmt; *c; c++) {
         switch (*c) {
@@ -337,6 +346,11 @@ int printf(const char *fmt, ...)
                     break;
                 case 'x':
                     printx(va_arg(args, unsigned long), colour, false, false);
+                    break;
+                case 's':
+                    for (sarg = va_arg(args, const char *); *sarg != '\0'; sarg++) {
+                        putchar(*sarg, colour);
+                    }
                     break;
                 }
                 fmt_specifier = false;
