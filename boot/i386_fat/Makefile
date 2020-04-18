@@ -1,9 +1,30 @@
-AS=nasm
 SECTOR_SIZE=512
+
+ifndef TOOLCHAIN_DIR
+TOOLCHAIN_DIR=~/opt/cross/bin
+endif
+
+ifndef NASM
+NASM=nasm
+endif
+
+ifndef AS
+AS=$(TOOLCHAIN_DIR)/$(ARCH)-elf-as
+endif
+
+ifndef CC
+CC=$(TOOLCHAIN_DIR)/$(ARCH)-elf-gcc
+endif
+
+ifndef LD
+LD=$(TOOLCHAIN_DIR)/$(ARCH)-elf-ld
+endif
 
 ifdef DEBUG
 override QEMU_DEBUG:=$(QEMU_DEBUG) -d cpu,exec,in_asm
 endif
+
+ifndef 
 
 # Connect with gdb to localhost:1234
 ifdef GDB
@@ -25,7 +46,7 @@ all: boot.img
 
 bootld.bin: $(BOOTLD_OBJS)
 	#~/bin/cross/bin/i686-elf-gcc -T boot1.ld -o $@ -ffreestanding -O2 -nostdlib $< -lgcc
-	~/bin/cross/bin/i686-elf-gcc -Ttext 0x500 -o boot1.pe $(BOOTLD_OBJS) -nostdlib
+	$(CC) -Ttext 0x500 -o boot1.pe $(BOOTLD_OBJS) -nostdlib
 	objcopy -O binary boot1.pe $@
 	rm boot1.pe
 

@@ -131,7 +131,7 @@ check_int13_extensions:
     mov bx, 0x55AA
     int disk_io.interrupt
     ;jc halt
-    jc load_gpt_hdr
+    jc load_gpt_hdr		; no extensions, assume defaults
         
 read_drive_params:
     mov ah, disk_io.ext_param_function
