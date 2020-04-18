@@ -44,7 +44,7 @@ fi
 
 STAGE="[2]"
 echo "$STAGE Checking for GNU make"
-IS_GNU_MAKE=`$MAKE --version | grep "GNU Make" > /dev/null 2> /dev/null && echo 1 || echo 0`
+IS_GNU_MAKE=`$MAKE --version 2> /dev/null | grep "GNU Make" > /dev/null 2> /dev/null && echo 1 || echo 0`
 if test $IS_GNU_MAKE -eq 1; then
 	echo "$STAGE GNU Make detected"
 else
@@ -78,7 +78,7 @@ echo "$STAGE Selected target $ARCH"
 STAGE="[4]"
 TOOLCHAIN_PREFIX=~/opt/cross/bin
 read -p "$STAGE Enter path for toolchain prefix or blank for default ($TOOLCHAIN_PREFIX) " NEW_TOOLCHAIN_PREFIX
-if test -n "${NEW_TOOLCHAIN_PREFIX//[ \t]}"; then
+if test -n "$NEW_TOOLCHAIN_PREFIX"; then
 	TOOLCHAIN_PREFIX=$NEW_TOOLCHAIN_PREFIX
 	echo "$STAGE Updated toolchain prefix ($TOOLCHAIN_PREFIX)"
 	unset NEW_TOOLCHAIN_PREFIX
@@ -89,11 +89,11 @@ echo "$STAGE Detecting development tools"
 AS="$TOOLCHAIN_PREFIX/$ARCH-elf-as"
 LD="$TOOLCHAIN_PREFIX/$ARCH-elf-ld"
 CC="$TOOLCHAIN_PREFIX/$ARCH-elf-gcc"
-for TOOL in AS LD CC; do
-	if test -f "${!TOOL}"; then
-		echo "$STAGE Found $TOOL (${!TOOL})"
+for TOOL in $AS $LD $CC; do
+	if test -f "$TOOL"; then
+		echo "$STAGE Found $TOOL"
 	else
-		echo "$ERROR $TOOL not found (${!TOOL})" 1>&2
+		echo "$ERROR $TOOL not found" 1>&2
 		exit 1
 	fi
 done
