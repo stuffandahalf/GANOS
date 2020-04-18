@@ -24,7 +24,7 @@ ifdef DEBUG
 override QEMU_DEBUG:=$(QEMU_DEBUG) -d cpu,exec,in_asm
 endif
 
-ifndef 
+#ifndef 
 
 # Connect with gdb to localhost:1234
 ifdef GDB
