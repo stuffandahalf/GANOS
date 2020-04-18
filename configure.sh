@@ -59,15 +59,15 @@ case $ARCH in
 i[3456]86)
 	;;
 x86_64)
-	;&
+	;;
 powerpc)
-	;&
+	;;
 powerpc64)
-	;&
+	;;
 armhf)
-	;&
+	;;
 arm64)
-	;&
+	;;
 *)
 	echo "$ERROR Invalid Architecture selected" 1>&2
 	exit 1
