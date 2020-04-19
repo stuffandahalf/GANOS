@@ -82,6 +82,7 @@ while test $VALID_ARCH != true; do
   	;;
   esac
 done
+unset VALID_ARCH
 echo "[$STAGE] Selected target $ARCH"
 
 STAGE=`expr $STAGE + 1`
