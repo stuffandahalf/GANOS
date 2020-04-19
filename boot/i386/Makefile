@@ -1,13 +1,13 @@
 #include ../../env.mk
 
-ifdef DEBUG
-QEMU_DEBUG+= -d cpu,exec,in_asm
-endif
+#ifdef DEBUG
+#QEMU_DEBUG+= -d cpu,exec,in_asm
+#endif
 
 # Connect with gdb to localhost:1234
-ifdef GDB
-QEMU_DEBUGr+:= -s -S
-endif
+#ifdef GDB
+#QEMU_DEBUGr+:= -s -S
+#endif
 
 TARGETS=pmbr.bin gptboot.com
 
