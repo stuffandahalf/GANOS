@@ -62,3 +62,4 @@ dkms.conf
 *.swp
 
 *.DS_Store
+.idea
