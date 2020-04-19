@@ -110,17 +110,17 @@ halt:
 	hlt
 
 print:
-    pushw %ax
-    movb $0x0e, %ah
+	pushw %ax
+	movb $0x0e, %ah
 1:	# loop
-    lodsb
-    testb %al, %al # if al == 0
-    je 2f
-    int $0x10
-    jmp 1b
+	lodsb
+	testb %al, %al # if al == 0
+	je 2f
+	int $0x10
+	jmp 1b
 2:	# end
-    popw %ax
-    ret
+	popw %ax
+	ret
 
 str:
 	.asciz "Hello World!\r\n"
