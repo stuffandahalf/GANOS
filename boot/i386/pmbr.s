@@ -12,7 +12,8 @@ _start:
 
 	pushw %ax
 	pushw $1f
-	retf
+	#retf
+	lret
 1:	# normalized segments and IP
 
 go_unreal:
