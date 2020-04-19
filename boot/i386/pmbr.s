@@ -16,13 +16,13 @@ _start:
 1:	# normalized segments and IP
 
 go_unreal:
-	pushw ds
+	pushw %ds
 
 	lgdt (gdtinfo)
 
-	movd %cr0, %eax
+	movl %cr0, %eax
 	orb $1, %al
-	movd %eax, %cr0
+	movl %eax, %cr0
 
 	jmp .+2
 
@@ -30,9 +30,9 @@ go_unreal:
 	movw %bx, %ds
 
 	andb $0xfe, %al
-	movd %eax, %cr0
+	movl %eax, %cr0
 
-	popw ds
+	popw %ds
 	sti
 
 begin:
@@ -56,7 +56,8 @@ print:
     popw %ax
     ret
 
-str: .asciz "Hello World!\r\n"
+str:
+	.asciz "Hello World!\r\n"
 
 gdtinfo:
 	.word gdt_end - gdt - 1

@@ -1,35 +1,37 @@
-AS = nasm
-CC = ~/bin/cross/bin/i686-elf-gcc
-#CFLAGS = -O0 -g -ffreestanding -m32 -c
-CFLAGS = -m32 -c -g
-LD = ld
-LFLAGS = -m elf_i386 -Ttext 0x1000 --oformat binary
+#include ../../env.mk
 
-floppy.img: boot0.bin boot1.bin
-	dd if=/dev/zero of=floppy.img bs=512 count=2880
-	dd if=boot0.bin of=floppy.img seek=0 count=1 conv=notrunc
-	dd if=boot1.bin of=floppy.img seek=1 count=17 conv=notrunc
+ifdef DEBUG
+QEMU_DEBUG+= -d cpu,exec,in_asm
+endif
 
-%.bin: %.asm
-	$(AS) -f bin -o $@ $<
+# Connect with gdb to localhost:1234
+ifdef GDB
+QEMU_DEBUGr+:= -s -S
+endif
 
-%.o: %.asm
-	$(AS) -f elf32 -o $@ $<
+TARGETS=pmbr.bin gptboot.com
 
-%.o: %.c
-	$(CC) $(CFLAGS) -o $@ $<
+.PHONY: all
+all: $(TARGETS)
 
-boot1.bin: boot1.o #boot_c.o
-	$(LD) $(LFLAGS) -o $@ boot1.o #boot_c.o
-#boot1.bin: boot_c.o boot_a.o
-#	$(LD) $(LFLAGS) -o $@ boot_c.o boot_a.o
+pmbr.bin: pmbr.o
+	$(LD) -Ttext 0x7c00 --oformat binary -o pmbr.bin pmbr.o
 
-.PHONY: run
-run: floppy.img
-	qemu-system-i386 -s -fda $<
+gptboot.com: gptboot.o
+	$(LD) -Ttext 0x0100 --oformat binary -o gptboot.com gptboot.o
+
+pmbr.o: pmbr.s
+	$(AS) -o pmbr.o pmbr.s
+
+gptboot.o: gptboot.s
+	$(AS) -o gptboot.o gptboot.s
+
+.PHONY: run_pmbr
+run_pmbr: pmbr.bin
+	qemu-system-i386 $(QEMU_DEBUG) -hda $<
 
 .PHONY: clean
 clean:
-	rm -f *.bin
-	rm -f *.o
-	rm -f floppy.img
+	rm -rf *.o
+	rm -rf *.bin
+	rm -rf *.com
