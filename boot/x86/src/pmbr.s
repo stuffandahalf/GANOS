@@ -43,7 +43,11 @@ go_unreal:
 .endif
 
 begin:
+.ifdef amd64
+	movw $str2, %si
+.else
 	movw $str, %si
+.endif
 	call print
 
 verify_disk_extensions:
@@ -124,6 +128,10 @@ print:
 
 str:
 	.asciz "Hello World!\r\n"
+.ifdef amd64
+str2:
+	.asciz "This is for amd64\r\n"
+.endif
 
 .if NEED_UNREAL
 gdtinfo:

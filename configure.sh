@@ -53,16 +53,16 @@ else
 fi
 
 STAGE=`expr $STAGE + 1`
-ARCHITECTURES="i386 x86_64 powerpc powerpc64 armhf arm64"
+ARCHITECTURES="i[3456]86 amd64 powerpc powerpc64 armhf arm64"
 VALID_ARCH=false
 echo "[$STAGE] Available Architectures: $ARCHITECTURES"
 while test $VALID_ARCH != true; do
   read -p "[$STAGE] Select a target architecture " ARCH
   case $ARCH in
-  i386)
+  i[3456]86)
   	VALID_ARCH=true
   	;;
-  x86_64)
+  amd64)
   	VALID_ARCH=true
   	;;
   powerpc)
