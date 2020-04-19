@@ -63,3 +63,4 @@ dkms.conf
 
 *.DS_Store
 .idea
+env.mk

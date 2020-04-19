@@ -1,37 +1,37 @@
 #include ../../env.mk
 
-#ifdef DEBUG
-#QEMU_DEBUG+= -d cpu,exec,in_asm
-#endif
+SRC_DIR=src
+OBJ_DIR=objs
+OUT_DIR=out
 
-# Connect with gdb to localhost:1234
-#ifdef GDB
-#QEMU_DEBUGr+:= -s -S
-#endif
-
-TARGETS=pmbr.bin gptboot.com
+TARGETS=$(OUT_DIR)/pmbr.bin $(OUT_DIR)/gptboot.com
 
 .PHONY: all
 all: $(TARGETS)
 
-pmbr.bin: pmbr.o
-	$(LD) -Ttext 0x7c00 --oformat binary -o pmbr.bin pmbr.o
+$(OUT_DIR)/pmbr.bin: $(OBJ_DIR)/pmbr.o $(OUT_DIR)
+	$(LD) -Ttext 0x7c00 --oformat binary -o $(OUT_DIR)/pmbr.bin $(OBJ_DIR)/pmbr.o
 
-gptboot.com: gptboot.o
-	$(LD) -Ttext 0x0100 --oformat binary -o gptboot.com gptboot.o
+$(OUT_DIR)/gptboot.com: $(OBJ_DIR)/gptboot.o $(OUT_DIR)
+	$(LD) -Ttext 0x0100 --oformat binary -o $(OUT_DIR)/gptboot.com $(OBJ_DIR)/gptboot.o
 
-pmbr.o: pmbr.s
-	$(AS) -o pmbr.o pmbr.s
+$(OBJ_DIR)/pmbr.o: $(SRC_DIR)/pmbr.s $(OBJ_DIR)
+	$(AS) -o $(OBJ_DIR)/pmbr.o $(SRC_DIR)/pmbr.s
 
-gptboot.o: gptboot.s
-	$(AS) -o gptboot.o gptboot.s
+$(OBJ_DIR)/gptboot.o: $(SRC_DIR)/gptboot.s $(OBJ_DIR)
+	$(AS) -o $(OBJ_DIR)/gptboot.o $(SRC_DIR)/gptboot.s
+
+$(OBJ_DIR):
+	mkdir $(OBJ_DIR)
+
+$(OUT_DIR):
+	mkdir $(OUT_DIR)
 
 .PHONY: run_pmbr
-run_pmbr: pmbr.bin
-	qemu-system-i386 $(QEMU_DEBUG) -hda $<
+run_pmbr: $(OUT_DIR)/pmbr.bin
+	qemu-system-i386 -hda $<
 
 .PHONY: clean
 clean:
-	rm -rf *.o
-	rm -rf *.bin
-	rm -rf *.com
+	rm -rf $(OBJ_DIR)
+	rm -rf $(OUT_DIR)

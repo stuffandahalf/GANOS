@@ -1,12 +1,8 @@
-ifndef ARCH
-	ARCH=i386
-endif
-ifndef IMAGETYPE
-	IMAGETYPE=hdd
-endif
+-include ../env.mk
 
-$(ARCH)_$(IMAGETYPE).img: $(ARCH)/Makefile
-	cd $(ARCH) && make
+.PHONY: $(ARCH)
+$(ARCH): $(ARCH)/Makefile
+	cd $(ARCH) && make all
 
 .PHONY: clean
 clean:
