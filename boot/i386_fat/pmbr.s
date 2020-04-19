@@ -70,13 +70,13 @@ gdt_end:
 
 	.org _start+446
 
-.part0:
+part0:
 	.space 16, 0
-.part1:
+part1:
 	.space 16, 0
-.part2:
+part2:
 	.space 16, 0
-.part3:
+part3:
 	.space 16, 0
 
 boot_sig:
