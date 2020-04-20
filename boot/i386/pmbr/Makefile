@@ -13,7 +13,7 @@ OBJS=$(SRCS:.s=.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(LD) $(LDFLAGS) -Ttext 0x7c00 --oformat=binary -o $@ $(OBJS)
+	$(LD) $(LDFLAGS) -Ttext 0x7c00 --oformat binary -o $@ $(OBJS)
 
 clean:
 	rm -f *.o
