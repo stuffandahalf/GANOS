@@ -10,6 +10,7 @@ $(SUBDIR_TARGETS):
 	cd $(@:.dir=) && $(MAKE)
 
 clean:
-	cd pmbr && make clean && cd ..
-	cd gptboot && make clean && cd ..
+	for SUBDIR in $(SUBDIRS); do \
+		cd $$SUBDIR && make clean && cd ..; \
+	done
 
