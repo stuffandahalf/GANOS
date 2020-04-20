@@ -16,6 +16,6 @@ $(TARGET): $(OBJS)
 	$(LD) $(LDFLAGS) -Ttext 0x7c00 --oformat binary -o $@ $(OBJS)
 
 clean:
-	rm -f *.o
+	rm -f $(OBJS)
 	rm -f $(TARGET)
 
