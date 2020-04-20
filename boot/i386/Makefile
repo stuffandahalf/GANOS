@@ -1,8 +1,8 @@
 .POSIX:
 .SUFFIXES:
 
-SUBDIR_TARGETS=pmbr.dir gptboot.dir
-SUBDIRS=$(SUBDIR_TARGETS:.dir=)
+SUBDIRS=pmbr gptboot
+SUBDIR_TARGETS=$(SUBDIRS:=.dir)
 
 all: $(SUBDIR_TARGETS)
 
