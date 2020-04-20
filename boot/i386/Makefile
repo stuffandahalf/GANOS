@@ -1,16 +1,13 @@
 .POSIX:
 .SUFFIXES:
 
-SUBDIRS=pmbr gptboot
+SUBDIR_TARGETS=pmbr.dir gptboot.dir
+SUBDIRS=$(SUBDIR_TARGETS:.dir=)
 
-.PHONY: all
-all: subdirs
+all: $(SUBDIR_TARGETS)
 
-.PHONY: subdirs $(SUBDIRS)
-subdirs: $(SUBDIRS)
-
-$(SUBDIRS):
-	cd $@ && $(MAKE)
+$(SUBDIR_TARGETS):
+	cd $(@:.dir=) && $(MAKE)
 
 clean:
 	cd pmbr && make clean && cd ..
