@@ -36,6 +36,7 @@
 *.x86_64
 *.hex
 *.pe
+*.com
 
 # Debug files
 *.dSYM/
@@ -64,5 +65,3 @@ dkms.conf
 *.DS_Store
 .idea
 env.mk
-*objs/
-*out/
