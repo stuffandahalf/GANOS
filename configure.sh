@@ -78,7 +78,7 @@ STAGE=`expr $STAGE + 1`
 
 read -p "[$STAGE] Enter path for toolchain prefix or blank for make defaults? " TOOLCHAIN_PREFIX
 if test -n "$TOOLCHAIN_PREFIX"; then
-	TOOLCHAIN_PREFIX=${TOOOLCHAIN_PREFIX/#~\//$HOME\/}
+	TOOLCHAIN_PREFIX=${TOOLCHAIN_PREFIX/#~\//$HOME\/}
 	echo "[$STAGE] Updated toolchain prefix ($TOOLCHAIN_PREFIX)"
 	STAGE=`expr $STAGE + 1`
 
@@ -103,11 +103,15 @@ if test -n "$TOOLCHAIN_PREFIX"; then
 	STAGE=`expr $STAGE + 1`
 
 	echo "[$STAGE] Detecting development tools"
+	TOOL_ARCH=$ARCH
+	if test "$TOOL_ARCH" == "i386"; then
+		TOOL_ARCH=i[3456]86
+	fi
 	case $TOOLCHAIN_TYPE in
 	gcc)
-		AS="$TOOLCHAIN_PREFIX/$ARCH-elf-as"
-		LD="$TOOLCHAIN_PREFIX/$ARCH-elf-ld"
-		CC="$TOOLCHAIN_PREFIX/$ARCH-elf-gcc"
+		AS="$TOOLCHAIN_PREFIX/$TOOL_ARCH-elf-as"
+		LD="$TOOLCHAIN_PREFIX/$TOOL_ARCH-elf-ld"
+		CC="$TOOLCHAIN_PREFIX/$TOOL_ARCH-elf-gcc"
 		;;
 	llvm)
 		AS=""
@@ -115,6 +119,7 @@ if test -n "$TOOLCHAIN_PREFIX"; then
 		CC=""
 		;;
 	esac
+	unset TOOL_ARCH
 
 	for TOOL in $AS $LD $CC; do
 		if test -f "$TOOL"; then
@@ -135,6 +140,7 @@ chmod u+x "$OUT_FILE"
 echo "#!/bin/sh" >> "$OUT_FILE"
 echo "MAKEFLAGS=\"\"" >> "$OUT_FILE"
 echo "MAKEFLAGS=\"\$MAKEFLAGS ARCH=$ARCH\"" >> "$OUT_FILE"
+echo "MAKEFLAGS=\"\$MAKEFLAGS CFLAGS=\\\"\$\(CFLAGS\) -ffrestanding\\\"\"" >> "$OUT_FILE"
 if test -n "$TOOLCHAIN_PREFIX"; then
 	echo "MAKEFLAGS=\"\$MAKEFLAGS TOOLCHAIN_PREFIX=$TOOLCHAIN_PREFIX\"" >> "$OUT_FILE"
 	echo "MAKEFLAGS=\"\$MAKEFLAGS AS=$AS\"" >> "$OUT_FILE"
