@@ -140,7 +140,7 @@ chmod u+x "$OUT_FILE"
 echo "#!/bin/sh" >> "$OUT_FILE"
 echo "MAKEFLAGS=\"\"" >> "$OUT_FILE"
 echo "MAKEFLAGS=\"\$MAKEFLAGS ARCH=$ARCH\"" >> "$OUT_FILE"
-echo "MAKEFLAGS=\"\$MAKEFLAGS CFLAGS=\\\"\$\(CFLAGS\) -ffrestanding\\\"\"" >> "$OUT_FILE"
+echo "MAKEFLAGS=\"\$MAKEFLAGS CFLAGS=-O\ -ffrestanding\"" >> "$OUT_FILE"
 if test -n "$TOOLCHAIN_PREFIX"; then
 	echo "MAKEFLAGS=\"\$MAKEFLAGS TOOLCHAIN_PREFIX=$TOOLCHAIN_PREFIX\"" >> "$OUT_FILE"
 	echo "MAKEFLAGS=\"\$MAKEFLAGS AS=$AS\"" >> "$OUT_FILE"
