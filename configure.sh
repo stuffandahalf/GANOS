@@ -3,6 +3,8 @@
 OS_NAME=GANIX
 OUT_FILE=env.sh
 
+CFLAGS=-Wall\\\ -Wextra\\\ -std=c99\\\ -O\\\ -ffreestanding\\\ -nostdlib\\\ -march=native
+
 ERROR="ERROR"
 WARN="WARN"
 DEBUG="DEBUG"
@@ -52,20 +54,26 @@ while test $VALID_ARCH != true; do
 	case $ARCH in
 	i386)
 		VALID_ARCH=true
+		CFLAGS=$CFLAGS\\\ -m32 #\ -march=native
 		;;
 	amd64)
+		CFLAGS=$CFLAGS\\\ -m64 #\ -march=native
 		VALID_ARCH=true
 		;;
 	powerpc)
+		CFLAGS=$CFLAGS\\\ -m32 #\ -march=native
 		VALID_ARCH=true
 		;;
 	powerpc64)
+		CFLAGS=$CFLAGS\\\ -m64 #\ -march=native
 		VALID_ARCH=true
 		;;
 	armhf)
+		CFLAGS=$CFLAGS\\\ -m32 #\ -march=native
 		VALID_ARCH=true
 		;;
 	aarch64)
+		CFLAGS=$CFLAGS\\\ -m64 #\ -march=native
 		VALID_ARCH=true
 		;;
 	*)
@@ -140,7 +148,7 @@ chmod u+x "$OUT_FILE"
 echo "#!/bin/sh" >> "$OUT_FILE"
 echo "MAKEFLAGS=\"\"" >> "$OUT_FILE"
 echo "MAKEFLAGS=\"\$MAKEFLAGS ARCH=$ARCH\"" >> "$OUT_FILE"
-echo "MAKEFLAGS=\"\$MAKEFLAGS CFLAGS=-O\ -ffrestanding\"" >> "$OUT_FILE"
+echo "MAKEFLAGS=\"\$MAKEFLAGS CFLAGS=$CFLAGS\"" >> "$OUT_FILE"
 if test -n "$TOOLCHAIN_PREFIX"; then
 	echo "MAKEFLAGS=\"\$MAKEFLAGS TOOLCHAIN_PREFIX=$TOOLCHAIN_PREFIX\"" >> "$OUT_FILE"
 	echo "MAKEFLAGS=\"\$MAKEFLAGS AS=$AS\"" >> "$OUT_FILE"
