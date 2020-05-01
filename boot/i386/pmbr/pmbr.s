@@ -49,40 +49,45 @@ read_disk_params:
 	movw %ax, sector_size
 
 load_gpt_hdr:
-	;movw $0x07e0, %cx
-	;movw %cx, %es
-	;xorw %di, %di
-	# es:di = 0x7e00, target
-
-	;xorl %ebx, %ebx
-	;xorl %eax, %eax
-	;incl %eax
-	# (ebx << 32) + eax = 1, lba 1
-	
-	;movw $1, %cx
-	# cx = 1, counter
-
 	xorl %eax, %eax
 	pushl %eax
-	inc %eax
+	inc %al
 	pushl %eax
-	pushl $0x07e0
+	pushw $0x07e0
 	xorb %al, %al
 	pushw %ax
+	inc %al
+	pushw %ax
 
+# sp -> number of sectors (2 bytes)
+#       offset (2 bytes)
+#       segment (2 bytes)
+#       first LBA (8 bytes)
 
 	call load_sectors
+	jc halt
 	addw $14, %sp
 
 halt:
 	cli
 	hlt
 
-# (%ebx << 32) + %eax = LBA
-# %cx = sector count
-# %es:%di = target
-load_sectors:
 
+# arguments on stack
+# sp -> return address (2 bytes)
+#       number of sectors (2 bytes)
+#       offset (2 bytes)
+#       segment (2 bytes)
+#       first LBA (8 bytes)
+#
+# carry flag set on fail
+load_sectors:
+	pushw %bp
+	movw %sp, %bp
+
+
+
+	popw %bp
 	ret
 
 print:
