@@ -7,10 +7,10 @@ SUBDIR_TARGETS=$(SUBDIRS:=.dir)
 all: $(SUBDIR_TARGETS)
 
 $(SUBDIR_TARGETS):
-	cd $(@:.dir=) && $(MAKE)
+	cd $(@:.dir=); $(MAKE)
 
 clean:
 	for SUBDIR in $(SUBDIRS); do \
-		cd $$SUBDIR && $(MAKE) clean && cd ..; \
+		cd $$SUBDIR; $(MAKE) clean; cd ..; \
 	done
 

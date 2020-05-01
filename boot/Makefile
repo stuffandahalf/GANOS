@@ -1,9 +1,7 @@
--include ../env.mk
+all: $(ARCH).dir
 
-.PHONY: $(ARCH)
-$(ARCH): $(ARCH)/Makefile
-	cd $(ARCH) && make all
+$(ARCH).dir: $(ARCH)/Makefile
+	cd $(ARCH); $(MAKE) all
 
-.PHONY: clean
 clean:
-	cd $(ARCH) && make clean
+	cd $(ARCH); $(MAKE) clean
