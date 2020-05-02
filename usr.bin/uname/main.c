@@ -2,12 +2,11 @@
 #include <unistd.h>
 #include <sys/utsname.h>
 
-#define UNAME_FLAG_MACHINE	(1 << 0)
-#define UNAME_FLAG_NODE		(1 << 1)
-#define UNAME_FLAG_RELEASE	(1 << 2)
-#define UNAME_FLAG_SYSNAME	(1 << 3)
-#define UNAME_FLAG_VERSION	(1 << 4)
-#define UNAME_FLAG_ALL		((1 << 5) - 1)
+#define MFLAG	(1 << 0)
+#define NFLAG	(1 << 1)
+#define RFLAG	(1 << 2)
+#define SFLAG	(1 << 3)
+#define VFLAG	(1 << 4)
 
 struct field {
 	int flag;
@@ -22,33 +21,33 @@ main(int argc, char **argv)
 	struct utsname d;
 	struct field *f;
 	struct field fields[] = {
-		{ UNAME_FLAG_SYSNAME,	&d.sysname },
-		{ UNAME_FLAG_NODE,		&d.nodename },
-		{ UNAME_FLAG_RELEASE,	&d.release },
-		{ UNAME_FLAG_VERSION,	&d.version },
-		{ UNAME_FLAG_MACHINE,	&d.machine },
+		{ SFLAG,	&d.sysname },
+		{ NFLAG,	&d.nodename },
+		{ RFLAG,	&d.release },
+		{ VFLAG,	&d.version },
+		{ MFLAG,	&d.machine },
 		{ 0, NULL }
 	};
 
 	while ((c = getopt(argc, argv, ":amnrsv")) != -1) {
 		switch (c) {
 		case 'a':
-			flags |= UNAME_FLAG_ALL;
+			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
 			break;
 		case 'm':
-			flags |= UNAME_FLAG_MACHINE;
+			flags |= MFLAG;
 			break;
 		case 'n':
-			flags |= UNAME_FLAG_NODE;
+			flags |= NFLAG;
 			break;
 		case 'r':
-			flags |= UNAME_FLAG_RELEASE;
+			flags |= RFLAG;
 			break;
 		case 's':
-			flags |= UNAME_FLAG_SYSNAME;
+			flags |= SFLAG;
 			break;
 		case 'v':
-			flags |= UNAME_FLAG_VERSION;
+			flags |= VFLAG;
 			break;
 		case '?':
 			fprintf(stderr, "Unrecognized option: '-%c'\n", optopt);
@@ -75,3 +74,4 @@ main(int argc, char **argv)
 
 	return 0;
 }
+
