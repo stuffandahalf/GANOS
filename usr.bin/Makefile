@@ -1,6 +1,9 @@
 .POSIX:
 
-SUBDIRS=make
+SUBDIRS=\
+		make\
+		uname
+
 SUBDIR_TARGETS=$(SUBDIRS:=.dir)
 
 all: $(SUBDIR_TARGETS)

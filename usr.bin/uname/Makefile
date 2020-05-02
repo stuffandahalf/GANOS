@@ -1,14 +1,13 @@
-.POSIX:
-.SUFFIXES: .c .o
+#.POSIX:
 
-TARGET=make
+TARGET=uname
 SRCS=main.c
 OBJS=$(SRCS:.c=.o)
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJS)
 
 clean:
 	rm -f $(TARGET)
