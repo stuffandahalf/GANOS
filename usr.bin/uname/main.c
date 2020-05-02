@@ -22,11 +22,11 @@ main(int argc, char **argv)
 	struct utsname d;
 	struct field *f;
 	struct field fields[] = {
-		{ UNAME_FLAG_MACHINE,	&d.machine },
+		{ UNAME_FLAG_SYSNAME,	&d.sysname },
 		{ UNAME_FLAG_NODE,		&d.nodename },
 		{ UNAME_FLAG_RELEASE,	&d.release },
-		{ UNAME_FLAG_SYSNAME,	&d.sysname },
 		{ UNAME_FLAG_VERSION,	&d.version },
+		{ UNAME_FLAG_MACHINE,	&d.machine },
 		{ 0, NULL }
 	};
 
