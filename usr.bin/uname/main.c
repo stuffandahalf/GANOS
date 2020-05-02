@@ -64,7 +64,7 @@ main(int argc, char **argv)
 		for (f = fields; f->flag != 0; f++) {
 			if (flags & f->flag) {
 				printf("%s", *f->value);
-				flags &= ~UNAME_FLAG_MACHINE;
+				flags &= ~f->flag;
 				if (flags) {
 					printf(" ");
 				}
