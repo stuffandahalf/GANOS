@@ -1,6 +1,6 @@
 #!/bin/sh
 
-OS_NAME=GANIX
+OS_NAME=ALiX
 OUT_FILE=env.sh
 
 CFLAGS=-Wall\\\ -Wextra\\\ -std=c99\\\ -O\\\ -ffreestanding\\\ -nostdlib\\\ -march=native
