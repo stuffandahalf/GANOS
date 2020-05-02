@@ -1,6 +1,9 @@
 .POSIX:
 
-SUBDIRS=sh
+SUBDIRS=\
+		echo \
+		sh
+
 SUBDIR_TARGETS=$(SUBDIR:=.dir)
 
 all: $(SUBDIR_TARGETS)
