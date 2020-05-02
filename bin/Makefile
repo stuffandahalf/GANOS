@@ -4,12 +4,12 @@ SUBDIRS=\
 		echo \
 		sh
 
-SUBDIR_TARGETS=$(SUBDIR:=.dir)
+SUBDIR_TARGETS=$(SUBDIRS:=.dir)
 
 all: $(SUBDIR_TARGETS)
 
 $(SUBDIR_TARGETS):
-	cd $@; $(MAKE) all
+	cd $(@:.dir=); $(MAKE) all
 
 clean:
 	for SUBDIR in $(SUBDIRS); do \
