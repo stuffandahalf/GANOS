@@ -13,7 +13,7 @@ $(SUBDIR_TARGETS):
 
 clean:
 	for SUBDIR in $(SUBDIRS); do \
-		cd $$SUBDIR; $(MAKE) clean; \
+		cd $$SUBDIR; $(MAKE) clean; cd ..; \
 	done
 
 
