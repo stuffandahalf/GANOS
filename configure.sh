@@ -47,14 +47,23 @@ fi
 STAGE=`expr $STAGE + 1`
 
 ARCHITECTURES="i386 amd64 powerpc powerpc64 armhf aarch64"
+NATIVE_ARCH=`uname -m`
 VALID_ARCH=false
 echo "[$STAGE] Available architectures: $ARCHITECTURES"
 while test $VALID_ARCH != true; do
-	read -p "[$STAGE] Select a target architecture? " ARCH
+	read -p "[$STAGE] Select a target architecture or leave blank for current architecture. " ARCH
+	if test -z $ARCH; then
+		ARCH=$NATIVE_ARCH
+	fi
 	case $ARCH in
 	i386)
 		VALID_ARCH=true
 		CFLAGS=$CFLAGS\\\ -m32 #\ -march=native
+		;;
+	x86_64)
+		ARCH=amd64
+		CFLAGS=$CFLAGS\\\ -m64
+		VALID_ARCH=true
 		;;
 	amd64)
 		CFLAGS=$CFLAGS\\\ -m64 #\ -march=native

@@ -1,7 +1,8 @@
 .POSIX:
 
 SUBDIRS=\
-		make\
+		make \
+		pwd \
 		uname
 
 SUBDIR_TARGETS=$(SUBDIRS:=.dir)

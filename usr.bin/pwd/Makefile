@@ -1,7 +1,6 @@
 #.POSIX:
-#.SUFFIXES: .c .o
 
-TARGET=make
+TARGET=pwd
 SRCS=main.c
 OBJS=$(SRCS:.c=.o)
 

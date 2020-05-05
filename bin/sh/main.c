@@ -3,7 +3,10 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-const char *const PS1 = "$ ";
+const char *const PS1_USR = "$ ";
+const char *const PS1_ROOT = "# ";
+
+const char *PS1 = NULL;
 const char *const PS2 = "> ";
 const char *const PS3 = "";
 const char *const PS4 = "+ ";
@@ -17,6 +20,12 @@ main(int argc, char *argv[])
 	size_t i = 0;
 	size_t buf_sz = 50;
 	char *buf = malloc(sizeof(char) * buf_sz);
+
+	if (geteuid() == 0) {
+		PS1 = PS1_ROOT;
+	} else {
+		PS1 = PS1_USR;
+	}
 
 	printf("%s", PS1);
 	fflush(stdout);
