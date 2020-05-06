@@ -3,7 +3,7 @@
 OS_NAME=ALiX
 OUT_FILE=env.sh
 
-CFLAGS=-Wall\\\ -Wextra\\\ -std=c99\\\ -O\\\ -ffreestanding\\\ -nostdlib\\\ -march=native
+CFLAGS=-Wall\\\ -Wextra\\\ -std=c99\\\ -O\\\ -ffreestanding\\\ -nostdlib\\\ -nostdinc\\\ -march=native
 
 ERROR="ERROR"
 WARN="WARN"
@@ -58,31 +58,31 @@ while test $VALID_ARCH != true; do
 	case $ARCH in
 	i386)
 		VALID_ARCH=true
-		CFLAGS=$CFLAGS\\\ -m32 #\ -march=native
+		CFLAGS=$CFLAGS\\\ 
 		;;
 	x86_64)
 		ARCH=amd64
-		CFLAGS=$CFLAGS\\\ -m64
+		CFLAGS=$CFLAGS\\\ 
 		VALID_ARCH=true
 		;;
 	amd64)
-		CFLAGS=$CFLAGS\\\ -m64 #\ -march=native
+		CFLAGS=$CFLAGS\\\ 
 		VALID_ARCH=true
 		;;
 	powerpc)
-		CFLAGS=$CFLAGS\\\ -m32 #\ -march=native
+		CFLAGS=$CFLAGS\\\ 
 		VALID_ARCH=true
 		;;
 	powerpc64)
-		CFLAGS=$CFLAGS\\\ -m64 #\ -march=native
+		CFLAGS=$CFLAGS\\\ 
 		VALID_ARCH=true
 		;;
 	armhf)
-		CFLAGS=$CFLAGS\\\ -m32 #\ -march=native
+		CFLAGS=$CFLAGS\\\ 
 		VALID_ARCH=true
 		;;
 	aarch64)
-		CFLAGS=$CFLAGS\\\ -m64 #\ -march=native
+		CFLAGS=$CFLAGS\\\ 
 		VALID_ARCH=true
 		;;
 	*)
