@@ -3,7 +3,7 @@
 OS_NAME=ALiX
 OUT_FILE=env.sh
 
-CFLAGS=-Wall\\\ -Wextra\\\ -std=c99\\\ -O\\\ -ffreestanding\\\ -nostdlib\\\ -nostdinc\\\ -march=native
+CFLAGS=-Wall\\\ -Wextra\\\ -std=c99\\\ -O\\\ -ffreestanding\\\ -nostdlib\\\ -nostdinc
 
 ERROR="ERROR"
 WARN="WARN"
