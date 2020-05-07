@@ -1,5 +1,5 @@
-TARGET=pmbr.bin
-SRCS=pmbr.s
+TARGET=mbr.bin
+SRCS=mbr.s
 OBJS=$(SRCS:.s=.o)
 
 .SUFFIXES: .s .o
@@ -15,4 +15,5 @@ $(TARGET): $(OBJS)
 clean:
 	rm -f $(OBJS)
 	rm -f $(TARGET)
+
 

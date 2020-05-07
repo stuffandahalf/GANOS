@@ -13,6 +13,7 @@ _start:
 	pushw $1f
 	lret
 1:	# normalized segments and IP
+	sti
 
 begin:
 	movw $str, %si
