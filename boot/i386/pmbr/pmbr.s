@@ -19,90 +19,50 @@ begin:
 	movw $str, %si
 	call print
 
-.if 0
 verify_disk_extensions:
 	# dl = drive num
 	movb $0x41, %ah
 	movw $0x55aa, %bx
 	int $0x13
-	jc 1f
-	andw $1, %cx
-	jz 2f
-	jmp 3f
-
-1:	# no extensions
-	movw legacy_sector_size, %ax
-	movw %ax, sector_size
-	jmp load_gpt_hdr
-
-2:	# packet interface not supported
-3:	# disk extensions present
-.endif
-
-.if 0
-read_disk_params:
-	# ds = 0
-	# dl = drive num
-	movb $0x48, %ah
-	movw $0x7e00, %di
-	movw $0x1e, (%di)
-	int $0x13
-	jc halt	# failed
-	mov $18, %bx
-	movw (%bx, %di, 1), %ax
-	movw %ax, sector_size
-.else
-read_disk_param:
-	# ds = 0
-	# dl = drive_num
-	pushw %dx	# preserve drive number
-	movb $0x08, %ah
-	xorw %di, %di
-	movw %di, %es
-	int $0x13
-	jc halt
-
-	inc %dh
-	movb %dh, heads
-	pushw %cx
-	andb $0x3F, %cl
-	movw %cx, sec_per_track
-	popw %cx
-	xchg %ch, %cl
-	shrw $6, %cx
-	inc %cx
-	movw %cx, cylinders
-
-	popw %dx
-	
-.endif
+	jnc 1f
+	test $1, %cx
+	jnz 1f
+	mov $.Lno_ext_str, %si
+	call print
+	jmp halt
+.Lno_ext_str:
+	.asciz "No int 13h extensions\r\n"
+1:	# extensions present
 
 load_gpt_hdr:
 	xorl %eax, %eax
+	xorl %ebx, %ebx
+	incb %bl			# eax = 0, ebx = 1
 	pushl %eax
-	inc %al
-	pushl %eax
-	pushw $0x07e0
-	xorb %al, %al
+	pushl %ebx
 	pushw %ax
-	inc %al
-	pushw %ax
+	pushw $0x7e00
+	pushw %bx
+	pushw $0x0010
 
-# sp -> number of sectors (2 bytes)
-#       offset (2 bytes)
-#       segment (2 bytes)
-#       first LBA low (4 bytes)
-#		first LBA high (4 bytes)
-
-	call load_sectors
-	jc halt
-	addw $14, %sp
+	#movw %ss, %ds		# ds and ss are already both 0
+	movw %sp, %si
+	movb $0x42, %ah
+	int $0x13
+	jnc 1f
+	movw $sector_load_fail_str, %si
+	call print
+	jmp halt
+1:
+	addw $0x10, %sp
+	movw $0x7e00, %si
+	call print
 
 halt:
 	cli
 	hlt
 
-
+.if 0
 # arguments on stack
 # sp -> return address (2 bytes)
 #       number of sectors (2 bytes)
@@ -140,6 +100,7 @@ load_sectors:
 	popw %bp
 	ret
 .equ ld_retry, 3
+.endif
 
 print:
 	pushw %ax
@@ -169,6 +130,9 @@ sec_per_track:
 cylinders:
 	.word 0
 
+sector_load_fail_str:
+	.asciz "Failed to load sectors"
+
 	.org _start+446
 
 part0:
@@ -183,3 +147,10 @@ part3:
 boot_sig:
 	.byte 0x55
 	.byte 0xaa
+
+.if 0
+sector2_str:
+	.asciz "This is from LBA 1!!!\r\n"
+
+.org sector2_str + 0x200
+.endif
