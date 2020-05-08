@@ -27,12 +27,25 @@ verify_disk_extensions:
 	jnc 1f
 	test $1, %cx
 	jnz 1f
-	mov $.Lno_ext_str, %si
+	mov $no_ext_str, %si
 	call print
 	jmp halt
-.Lno_ext_str:
-	.asciz "No int 13h extensions\r\n"
 1:	# extensions present
+
+get_disk_params:
+	subw $28, %sp
+	pushw $0x1e
+	mov %sp, %si
+	pushw %bp
+	mov %sp, %bp
+	movb $42, %ah
+	int $0x13
+
+	movw -32(%bp), %ax
+	movw %ax, sector_size
+
+	popw %bp
+	addw $30, %sp
 
 load_gpt_hdr:
 	xorl %eax, %eax
@@ -55,52 +68,23 @@ load_gpt_hdr:
 	jmp halt
 1:
 	addw $0x10, %sp
-	movw $0x7e00, %si
+	movw $0x7e00, %bp
+
+.if 0
+	movw %bp, %si
 	call print
+.endif
+
+locate_efi_part:
+	pushw %dx
+
+	# Loop through all partition entries until an EFI partition is found
+
+	popw %dx
 
 halt:
 	cli
 	hlt
-
-.if 0
-# arguments on stack
-# sp -> return address (2 bytes)
-#       number of sectors (2 bytes)
-#       offset (2 bytes)
-#       segment (2 bytes)
-#       first LBA low (4 bytes)
-#		first LBA high (4 bytes)
-#
-# dl = drive num
-# carry flag set on fail
-load_sectors:
-	pushw %bp
-	movw %sp, %bp
-	pushw %dx
-
-	movl -12(%bp), %edx	# eax = LBA high
-	jnz .Lfail
-	movl -8(%bp), %eax	# eax = LBA low
-	divl sec_per_track
-	inc %edx
-	pushl %edx
-
-	xorl %edx, %edx
-	divl heads
-
-	movl %eax, %ecx
-	movl %edx, %edx
-	popl %eax
-
-	popw %dx
-
-.Lfail:	# fail
-	stc
-.Lexit:	# success
-	popw %bp
-	ret
-.equ ld_retry, 3
-.endif
 
 print:
 	pushw %ax
@@ -118,10 +102,8 @@ print:
 str:
 	.asciz "Hello World!\r\n"
 
-#legacy_sector_size:
-#	.word 512
-#sector_size:
-#	.word 512
+sector_size:
+	.word 512
 
 heads:
 	.byte 0
@@ -130,6 +112,8 @@ sec_per_track:
 cylinders:
 	.word 0
 
+no_ext_str:
+	.asciz "No int 13h extensions\r\n"
 sector_load_fail_str:
 	.asciz "Failed to load sectors"
 
