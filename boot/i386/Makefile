@@ -1,7 +1,8 @@
 .POSIX:
 .SUFFIXES:
 
-SUBDIRS=mbr \
+SUBDIRS=floppy \
+		mbr \
 		pmbr \
 		gptboot
 SUBDIR_TARGETS=$(SUBDIRS:=.dir)

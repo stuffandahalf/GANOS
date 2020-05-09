@@ -48,13 +48,14 @@ get_disk_params:
 	addw $30, %sp
 
 load_gpt_hdr:
+	mov $0x7e00, %di
 	xorl %eax, %eax
 	xorl %ebx, %ebx
 	incb %bl			# eax = 0, ebx = 1
 	pushl %eax
 	pushl %ebx
 	pushw %ax
-	pushw $0x7e00
+	pushw %di
 	pushw %bx
 	pushw $0x0010
 
@@ -68,19 +69,32 @@ load_gpt_hdr:
 	jmp halt
 1:
 	addw $0x10, %sp
-	movw $0x7e00, %bp
 
 .if 0
-	movw %bp, %si
+	movw %di, %si
 	call print
 .endif
 
 locate_efi_part:
 	pushw %dx
-
-	# Loop through all partition entries until an EFI partition is found
-
+	movl 84(%di), %ecx	# ecx = entry size
+	xorl %eax, %eax
+	xorl %edx, %edx
+	movw sector_size, %ax	# edx:eax = sector size
+	pushw %ax
+	divl %ecx
+	# eax = entries / sector
+	popw %bx
 	popw %dx
+	addw %bx, %di
+
+	# eax = entries / sector
+	# dl = drive number
+	# di = target address
+	
+	
+1:	# load sector array part
+	
 
 halt:
 	cli
@@ -104,13 +118,6 @@ str:
 
 sector_size:
 	.word 512
-
-heads:
-	.byte 0
-sec_per_track:
-	.word 0
-cylinders:
-	.word 0
 
 no_ext_str:
 	.asciz "No int 13h extensions\r\n"
@@ -138,3 +145,4 @@ sector2_str:
 
 .org sector2_str + 0x200
 .endif
+
