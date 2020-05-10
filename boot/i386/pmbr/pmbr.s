@@ -89,6 +89,7 @@ locate_efi_part:
 	addw %bx, %di
 
 	# eax = entries / sector
+	# bx = sector size
 	# dl = drive number
 	# di = target address
 	
