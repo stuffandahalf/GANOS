@@ -1,3 +1,5 @@
+.POSIX:
+
 TARGET=make
 SRCS=main.c
 OBJS=$(SRCS:.c=.o)

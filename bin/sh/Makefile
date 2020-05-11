@@ -1,3 +1,5 @@
+.POSIX:
+
 TARGET=sh
 SRCS=main.c builtins.c
 OBJS=$(SRCS:.c=.o)

@@ -1,3 +1,5 @@
+.POSIX:
+
 TARGET=echo
 SRCS=main.c
 OBJS=$(SRCS:.c=.o)

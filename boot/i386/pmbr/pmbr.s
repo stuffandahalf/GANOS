@@ -81,21 +81,67 @@ locate_efi_part:
 	xorl %eax, %eax
 	xorl %edx, %edx
 	movw sector_size, %ax	# edx:eax = sector size
-	pushw %ax
 	divl %ecx
 	# eax = entries / sector
-	popw %bx
 	popw %dx
-	addw %bx, %di
 
 	# eax = entries / sector
-	# bx = sector size
 	# dl = drive number
-	# di = target address
+	# di = gpt header
+	# di+bx = target address
+	# (sp) = partition entries
 	
+	movw %di, %bx
+	addw %bx, %bx
+	# bx = target address
 	
+	# set up int 13h packet
+	pushl 76(%di)
+	pushl 72(%di)
+	pushw %ss
+	pushw %bx
+	pushl $0x00010010	# one sector, 0x10 bytes packet size
+	
+	movw %sp, %si
+	
+	pushl %eax	# preserve entries per sector
 1:	# load sector array part
+	movb $0x42, %ah
+	int $0x13
 	
+	movl -4(%si), %eax	# reload eax with entries / sector
+	movw 4(%si), %bx	# reload target address
+2:	# check next partition entry
+	pushw %si
+	pushw %di
+	
+	movw $efi_part_guid, %si
+	movw %bx, %di
+	movw $16, %cx
+	repe cmpsb
+
+	popw %di
+	popw %si
+	je 5f
+	# get ready to check next entry
+	decl %eax
+	jnz 3f
+	addl $1, 8(%si)
+	adcl $0, 12(%si)
+	jmp 1b	# last partition in sector
+3:
+	addw 84(%di), %bx
+	decl 80(%di)
+	jz 4f
+	jmp 2b
+4:	# No EFI partition
+	movw $no_efi_str, %si
+	call print
+	jmp halt
+	
+5:	# found EFI partition
+	movw $found_efi_str, %si
+	call print
 
 halt:
 	cli
@@ -114,16 +160,22 @@ print:
 	popw %ax
 	ret
 
+efi_part_guid:
+	.byte 0x28, 0x73, 0x2a, 0xc1, 0x1f, 0xf8, 0xd2, 0x11
+	.byte 0xba, 0x4b, 0x00, 0xa0, 0xc9, 0x3e, 0xc9, 0x3b
+
 str:
 	.asciz "Hello World!\r\n"
-
 sector_size:
 	.word 512
-
 no_ext_str:
 	.asciz "No int 13h extensions\r\n"
 sector_load_fail_str:
 	.asciz "Failed to load sectors"
+found_efi_str:
+	.asciz "Found EFI"
+no_efi_str:
+	.asciz "No EFI"
 
 	.org _start+446
 

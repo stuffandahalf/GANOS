@@ -65,6 +65,7 @@ main(int argc, char *argv[])
 
 	free(buf);
 
+	printf("\n");
 	return 0;
 }
 

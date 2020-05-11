@@ -1,3 +1,5 @@
+.POSIX:
+
 TARGET=pwd
 SRCS=main.c
 OBJS=$(SRCS:.c=.o)
