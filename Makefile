@@ -27,4 +27,5 @@ clean:
 	for SUBDIR in $(SUBDIRS); do \
 		cd $$SUBDIR; $(MAKE) clean; cd ..; \
 	done
+	cd tools; $(MAKE) clean
 
