@@ -21,5 +21,6 @@ llvm.src:
 clean:
 	rm -rf $(BUILD_DIRS)
 	rm -rf $(SRC_DIRS)
+	rm -rf $(TOOLS)
 
 
