@@ -13,7 +13,7 @@ llvm: llvm.build
 llvm.build: llvm.src
 	mkdir $@
 	cd $@; \
-		cmake ../llvm.src/llvm -DLLVM_ENABLE_PROJECTS=clang;lld -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../llvm; \
+		cmake ../llvm.src/llvm -DLLVM_ENABLE_PROJECTS="clang;lld" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../llvm; \
 		$(MAKE)
 
 llvm.src:
