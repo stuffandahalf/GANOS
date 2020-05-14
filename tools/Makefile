@@ -20,14 +20,12 @@ llvm.build: llvm.src
 		$(MAKE)
 
 llvm.src: llvm.tar.xz
-	#git clone https://github.com/llvm/llvm-project $@
-	unxz < $< | tar x
+	unxz < llvm.tar.xz | tar x -f-
 	mv llvm-project-10.0.0 $@
 
 llvm.tar.xz:
-	#curl -o $@ $(LLVM_SRC_URL)
-	wget -O $@ $(LLVM_SRC_URL)
-	
+	curl -L -o $@ -O $(LLVM_SRC_URL) || wget -O $@ $(LLVM_SRC_URL)
+
 clean:
 	rm -rf $(ARCHIVES)
 	rm -rf $(SRC_DIRS)
