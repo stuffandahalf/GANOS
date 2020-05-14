@@ -1,6 +1,9 @@
 .POSIX:
 .SUFFIXES:
 
+ROOT_DIR=../..
+include $(ROOT_DIR)/tools.mk
+
 SUBDIRS=floppy \
 		mbr \
 		pmbr \

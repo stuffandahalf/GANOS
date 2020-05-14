@@ -1,3 +1,9 @@
+.POSIX:
+
+ARCH=i386
+ROOT_DIR=../../..
+include $(ROOT_DIR)/tools.mk
+
 TARGET=mbr.bin
 SRCS=mbr.s
 OBJS=$(SRCS:.s=.o)
