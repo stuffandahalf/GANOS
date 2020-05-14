@@ -1,8 +1,11 @@
 .POSIX:
 
-TOOLS=llvm
-BUILD_DIRS=$(TOOLS:=.build)
-SRC_DIRS=$(TOOLS:=.src)
+ARCHIVES=llvm.tar.xz
+SRC_DIRS=$(ARCHIVES:.tar.xz=.src)
+BUILD_DIRS=$(SRC_DIRS:.src=.build)
+TOOLS=$(BUILD_DIRS:.build=)
+
+LLVM_SRC_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/llvm-project-10.0.0.tar.xz"
 
 all: $(TOOLS)
 
@@ -16,12 +19,19 @@ llvm.build: llvm.src
 		cmake ../llvm.src/llvm -DLLVM_ENABLE_PROJECTS="clang;lld" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../llvm; \
 		$(MAKE)
 
-llvm.src:
-	git clone https://github.com/llvm/llvm-project $@
+llvm.src: llvm.tar.xz
+	#git clone https://github.com/llvm/llvm-project $@
+	unxz < $< | tar x
+	mv llvm-project-10.0.0 $@
+
+llvm.tar.xz:
+	#curl -o $@ $(LLVM_SRC_URL)
+	wget -O $@ $(LLVM_SRC_URL)
 	
 clean:
-	rm -rf $(BUILD_DIRS)
+	rm -rf $(ARCHIVES)
 	rm -rf $(SRC_DIRS)
+	rm -rf $(BUILD_DIRS)
 	rm -rf $(TOOLS)
 
 
