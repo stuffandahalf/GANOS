@@ -22,6 +22,7 @@ llvm.build: llvm.src
 llvm.src: llvm.tar.xz
 	unxz < llvm.tar.xz | tar x -f-
 	mv llvm-project-10.0.0 $@
+	touch -m $@
 
 llvm.tar.xz:
 	curl -L -o $@ -O $(LLVM_SRC_URL) || wget -O $@ $(LLVM_SRC_URL)
