@@ -67,6 +67,8 @@ clean:
 	for SUBDIR in $(SUBDIRS); do \
 		cd $$SUBDIR; $(MAKE) clean; cd ..; \
 	done
+
+clean-all: clean
 	cd tools; $(MAKE) clean
 
 
