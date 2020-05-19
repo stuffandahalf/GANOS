@@ -1,5 +1,6 @@
 .POSIX:
 
+ARCH=i386
 ROOT_DIR=../../..
 include $(ROOT_DIR)/tools.mk
 
