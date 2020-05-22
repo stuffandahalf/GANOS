@@ -11,7 +11,9 @@ all: $(TOOLS)
 
 llvm: llvm.build
 	cd llvm.build; \
-		$(MAKE) install
+		$(MAKE) install; \
+		cd ..; \
+		touch $@
 
 llvm.build: llvm.src
 	mkdir $@
