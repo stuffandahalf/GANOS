@@ -62,6 +62,9 @@ dkms.conf
 *.lst
 *.swp
 
+# Editor and environment files
 *.DS_Store
 .idea
-env.sh
+
+# LLVM build and executable files
+tools/llvm*
