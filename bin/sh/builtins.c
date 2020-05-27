@@ -31,13 +31,14 @@ builtin_lookup(const char *util)
 int
 cd(int argc, char *argv[])
 {
-	write(0, "cd called\n", 9);
+	write(0, "cd called\n", 10);
 	return 0;
 }
 
 int
 shexit(int argc, char *argv[])
 {
+	write(0, "exit called\n", 12);
 	return 1;
 }
 
