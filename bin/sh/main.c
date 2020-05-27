@@ -1,15 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/wait.h>
+//#include <sys/wait.h>
+
+#include "builtins.h"
 
 const char *const PS1_USR = "$ ";
 const char *const PS1_ROOT = "# ";
 
 const char *PS1 = NULL;
-const char *const PS2 = "> ";
-const char *const PS3 = "";
-const char *const PS4 = "+ ";
+const char *PS2 = "> ";
+const char *PS3 = "";
+const char *PS4 = "+ ";
 
 int process(char *buf, size_t buf_sz);
 
@@ -126,37 +128,43 @@ process(char *buf, size_t buf_sz)
 			
 		}*/
 	}
+	
+	builtin_util builtin_func = builtin_lookup(com);
+	
+	if (builtin_func) {
+		builtin_func(argc, args);
+	} else {
+		pid_t pid = fork();
 
-	pid_t pid = fork();
-
-	switch (pid) {
-	case -1:
-		fprintf(stderr, "Failed to execute command\n");
-		ret = 0;
-		break;
-	case 0:
-		//com = "/bin/sh";
-		printf("EXECUTING %s\n", com);
-		printf("PASSING ARGUMENTS\n");
-		for (char **cpp = args; *cpp != NULL; cpp++) {
-			printf("%s\n", *cpp);
+		switch (pid) {
+		case -1:
+			fprintf(stderr, "Failed to execute command\n");
+			ret = 0;
+			break;
+		case 0:
+			//com = "/bin/sh";
+			printf("EXECUTING %s\n", com);
+			printf("PASSING ARGUMENTS\n");
+			for (char **cpp = args; *cpp != NULL; cpp++) {
+				printf("%s\n", *cpp);
+			}
+			char *test[] = { com, NULL };
+			if (execv(com, args) == -1)
+			//if (execv(com, test) == -1)
+			{
+				perror(NULL);
+				exit(1);
+			}
+			//execv(com, args);
+			//printf("%s\n", com);
+			/*for (char *c = com; *c != '\0'; c++) {
+				printf("%d\t%c\n", *c, *c);
+			}*/
+			break;
+		default:
+			waitpid(pid, NULL, 0);
+			break;
 		}
-		char *test[] = { com, NULL };
-		if (execv(com, args) == -1)
-		//if (execv(com, test) == -1)
-		{
-			perror(NULL);
-			exit(1);
-		}
-		//execv(com, args);
-		//printf("%s\n", com);
-		/*for (char *c = com; *c != '\0'; c++) {
-			printf("%d\t%c\n", *c, *c);
-		}*/
-		break;
-	default:
-		waitpid(pid, NULL, 0);
-		break;
 	}
 
 	free(args);

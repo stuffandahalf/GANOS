@@ -1,13 +1,42 @@
+#include <string.h>
 #include <unistd.h>
-	
-int
-cd(const char *path)
+#include "builtins.h"
+
+/* This is a naive implementation. */
+/* Should reimplement as trie-type structure */
+struct lookup_entry {
+	const char		*util;
+	builtin_util	function;
+};
+static struct lookup_entry
+lookup[] = {
+	{ "cd",		cd },
+	{ "exit",	shexit },
+	{ 0 }
+};
+
+builtin_util
+builtin_lookup(const char *util)
 {
-	return 1;
+	struct lookup_entry *entry;
+	
+	for (entry = lookup; entry->util != NULL; entry++) {
+		if (!strcmp(util, entry->util)) {
+			return entry->function;
+		}
+	}
+	return NULL;
 }
 
 int
-shexit(int ecode)
+cd(int argc, char *argv[])
+{
+	write(0, "cd called\n", 9);
+	return 0;
+}
+
+int
+shexit(int argc, char *argv[])
 {
 	return 1;
 }
