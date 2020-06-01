@@ -8,7 +8,7 @@ TARGETS=i386 \
 SUBDIRS=bin \
 	boot \
 	sys \
-	usr.bin
+	usr/bin
 
 all: $(TARGETS:=.all)
 
