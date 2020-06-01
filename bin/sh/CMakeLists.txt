@@ -5,3 +5,5 @@ file(GLOB_RECURSE SRC "src/*.c")
 file(GLOB_RECURSE INCLUDE "src/*.h")
 add_executable(sh ${SRC} ${INCLUDE})
 
+install(TARGETS sh DESTINATION bin)
+
