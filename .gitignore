@@ -70,4 +70,4 @@ dkms.conf
 tools/llvm*
 
 # cmake build files
-*build
+*build*

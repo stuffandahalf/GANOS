@@ -2,6 +2,7 @@
 #define _POSIX_C_SOURCE 2
 #endif
 
+#include <stdio.h>
 #include <string.h>
 #ifdef _WIN32
 #include <direct.h>
@@ -10,6 +11,11 @@
 #include <unistd.h>
 #endif /* defined(_WIN32) */
 #include "builtins.h"
+
+/* Builtin operations */
+static int builtin_cd(int, char *[]);
+static int builtin_exit(int, char *[]);
+static int builtin_set(int, char *[]);
 
 /* This is a naive implementation. */
 /* Should reimplement as trie-type structure */
@@ -20,9 +26,16 @@ struct lookup_entry {
 
 static struct lookup_entry
 lookup[] = {
-	{ "cd",		cd },
-	{ "exit",	shexit },
+	{ "cd",		builtin_cd },
+	{ "exit",	builtin_exit },
+	{ "set",	builtin_set },
 	{ 0 }
+};
+
+struct trie_node {
+	int i;
+	char c;
+	struct trie_node *children;
 };
 
 builtin_util
@@ -38,8 +51,8 @@ builtin_lookup(const char *util)
 	return NULL;
 }
 
-int
-cd(int argc, char *argv[])
+static int
+builtin_cd(int argc, char *argv[])
 {
 	int c;
 	
@@ -47,15 +60,30 @@ cd(int argc, char *argv[])
 	
 	optind = 1;
 	while ((c = getopt(argc, argv, "LP")) != -1) {
-		printf("%c\n", c);
+		write(0, &c, 1);
 	}
 	return 0;
 }
 
-int
-shexit(int argc, char *argv[])
+static int
+builtin_exit(int argc, char *argv[])
 {
 	write(0, "exit called\n", 12);
 	return 1;
+}
+
+static int
+builtin_set(int argc, char *argv[])
+{
+	extern char **environ;
+	char **sp;
+
+	if (argc == 1) {
+		for (sp = environ; *sp != NULL; sp++) {
+			printf("%s\n", *sp);
+		}
+		return 0;
+	}
+	return 0;
 }
 
