@@ -276,7 +276,7 @@
 #define STDOUT_FILENO	1
 
 #ifndef DEFINED_SIZE_T
-typedef 
+//typedef 
 #define DEFINED_SIZE_T	1
 #endif
 
