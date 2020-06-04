@@ -1,6 +1,6 @@
 #!/bin/sh
 
-#DEBUG=true
+DEBUG=true
 echo_debug()
 {
 	if [ "$DEBUG" = true ]; then
@@ -10,7 +10,7 @@ echo_debug()
 
 get_field()
 {
-	echo "$FIELDS" | grep "^$1\s*=\s*" | sed -n -e "s/^$1\s*=\s*//p"
+	echo "$FIELDS" | grep "^$1[[:space:]]*=[[:space:]]*" | sed -n -e "s/^$1[[:space:]]*=[[:space:]]*//p"
 }
 
 IN_FILE=make.mg
