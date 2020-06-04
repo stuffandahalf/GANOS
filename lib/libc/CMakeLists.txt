@@ -5,3 +5,5 @@ file(GLOB_RECURSE UNISTD_SRCS unistd/*.c)
 
 add_library(c SHARED ${UNISTD_SRCS})
 
+export(EXPORT c)
+
