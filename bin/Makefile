@@ -2,6 +2,7 @@
 
 SUBDIRS=\
 		echo \
+		ed \
 		sh
 
 SUBDIR_TARGETS=$(SUBDIRS:=.dir)
