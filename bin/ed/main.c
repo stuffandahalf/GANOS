@@ -1,17 +1,20 @@
 #if defined(__GNUC__) && !defined(__clang__)
-#ifdef __POSIX_C_SOURCE
-#undef __POSIX_C_SOURCE
+#ifdef _POSIX_C_SOURCE
+#undef _POSIX_C_SOURCE
 #endif /* defined(__POSIX_C_SOURCE) */
-#define __POSIX_C_SOURCE	2
-#endif /* defined(__GNUC__) && !defined(__clang__)
+#define _POSIX_C_SOURCE	2
+#endif /* defined(__GNUC__) && !defined(__clang__) */
 
 #include <stdio.h>
 #include <unistd.h>
 
-int configure(int argc, char *argv[]);
-void printhelp();
+#define BUFFER_SIZE			15
+#define LINE_BUFFER_SIZE	50
 
-const char *prompt = "";
+int configure(int argc, char *argv[]);
+void printhelp(void);
+
+const char *prompt = NULL;
 size_t address = 0;;
 char **buffer = NULL;
 
