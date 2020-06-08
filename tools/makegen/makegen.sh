@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEBUG=true
+DEBUG=false
 echo_debug()
 {
 	if [ "$DEBUG" = true ]; then
@@ -13,6 +13,132 @@ get_field()
 	echo "$FIELDS" | grep "^$1[[:space:]]*=[[:space:]]*" | sed -n -e "s/^$1[[:space:]]*=[[:space:]]*//p"
 }
 
+emit()
+{
+	echo "$@" >> $OUT_FILE
+}
+
+# from https://stackoverflow.com/questions/3915040/bash-fish-command-to-print-absolute-path-to-a-filehttps://stackoverflow.com/questions/3915040/bash-fish-command-to-print-absolute-path-to-a-file
+realpath()
+{
+	echo "$(cd "$(dirname "$1")"; pwd -P)/$(basename "$1")"
+}
+
+# $1 = source file
+emit_compile()
+{
+	SRC_FILE=$1
+	case $SRC_FILE in
+	*.c)
+		BASEDIR=`dirname $SRC_FILE`
+		INCLUDES=`cat $SRC_FILE | \
+			grep "^\s*#\s*include\s\+\".*\"" | \
+			sed -n -e "s/^\s*#\s*include\s\+\"/$BASEDIR\//p" | \
+			sed -n -e 's/\"\s*$//p' | \
+			tr '\r\n' '\n' | tr '\n' ' '`
+		echo_debug "Include files for $SRC_FILE"
+		echo_debug "$INCLUDES"
+		echo_debug ""
+	
+		emit "$BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o: $BUILD_DIR $SRC_FILE $INCLUDES"
+		emit "	\$(CC) \$(CFLAGS) -c -o $BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o $SRC_FILE"
+		emit ""
+		unset INCLUDES
+		;;
+	*.s)
+		emit "$BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o: $BUILD_DIR $SRC_FILE"
+		emit "	\$(AS) \$(ASFLAGS) -o $BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o $SRC_FILE"
+		;;
+	*)
+		echo "ERROR: $SRC_FILE has an unsupported file extension" 1>&2
+		rm "$OUT_FILE"
+		exit 1
+		;;
+	esac
+}
+
+write_prog()
+{
+	emit ".POSIX:"
+	emit ""
+	emit "TARGET=$BUILD_DIR/$TARGET"
+	emit ""
+	emit "all: \$(TARGET)"
+	emit "	"
+	emit ""
+	emit "\$(TARGET): $BUILD_DIR $OBJS"
+	emit "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"
+	emit ""
+	for SRC_FILE in $SRCS; do
+		emit_compile $SRC_FILE
+	done
+	emit "$BUILD_DIR:"
+	emit "	mkdir -p $BUILD_DIR"
+	emit ""
+	emit "install: $PREFIX$INSTALL_DIR \$(TARGET)"
+	emit "	cp \$(TARGET) $PREFIX$INSTALL_DIR"
+	emit ""
+	emit "$PREFIX$INSTALL_DIR:"
+	emit "	mkdir -p $PREFIX$INSTALL_DIR"
+	emit ""
+	emit "clean:"
+	emit "	rm -rf $BUILD_DIR"
+	emit ""
+	emit ""
+}
+
+write_lib()
+{
+	emit ".POSIX:"
+	emit ""
+	emit "TARGET=$TARGET"
+	emit ""
+	emit "all: \$(TARGET)"
+	emit ""
+	emit "\$(TARGET): $OBJS"
+	emit "	"
+	emit ""
+	for SRC_FILE in $SRCS; do
+		emit_compile $SRC_FILE
+	done
+	emit "$BUILD_DIR:"
+	emit "	mkdir -p $BUILD_DIR"
+	emit ""
+	emit "install: $PREFIX$INSTALL_DIR \$(TARGET)"
+	emit "	cp \$(TARGET) $PREFIX$INSTALL_DIR"
+	emit ""
+	emit "$PREFIX$INSTALL_DIR:"
+	emit "	mkdir -p $PREFIX$INSTALL_DIR"
+	emit ""
+	emit "clean:"
+	emit "	rm -rf $BUILD_DIR"
+	emit ""
+	emit ""
+}
+
+write_meta()
+{
+	emit ".POSIX:"
+	emit ""
+	emit "all: $SUBDIR_TARGETS"
+	emit ""
+	for SUBDIR in $SUBDIRS; do
+		emit "$SUBDIR.dir: $SUBDIR"
+		emit "	cd $SUBDIR; \$(MAKE) all"
+		emit ""
+	done
+	emit "install: $SUBDIR_TARGETS"
+	for SUBDIR in $SUBDIRS; do
+		emit "	cd $SUBDIR; \$(MAKE) install"
+	done
+	emit ""
+	emit "clean:"
+	for SUBDIR in $SUBDIRS; do
+		emit "	cd $SUBDIR; \$(MAKE) clean"
+	done
+	emit ""
+}
+
 IN_FILE=make.mg
 OUT_FILE=Makefile
 BUILD_DIR=build
@@ -22,6 +148,11 @@ echo_debug "$FIELDS"
 
 MG_TYPE=`get_field TYPE`
 
+if [ -e $OUT_FILE ]; then
+	rm $OUT_FILE
+fi
+touch $OUT_FILE
+
 case $MG_TYPE in
 meta)
 	SUBDIRS=`get_field SUBDIRS`
@@ -29,20 +160,13 @@ meta)
 	for SUBDIR in $SUBDIRS; do
 		SUBDIR_TARGETS="$SUBDIR_TARGETS $SUBDIR.dir"
 	done
-	echo ".POSIX:"							>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	echo "all: $SUBDIR_TARGETS"					>> $OUT_FILE
-	echo ""								>> $OUT_FILE
+	
+	write_meta
 	for SUBDIR in $SUBDIRS; do
-		echo "$SUBDIR.dir: $SUBDIR"				>> $OUT_FILE
-		echo "	cd $SUBDIR; \$(MAKE) all"			>> $OUT_FILE
-		echo ""							>> $OUT_FILE
+		RETURN_DIR=`echo $PWD`
+		cd $SUBDIR; ../$0; cd $RETURN_DIR
+		unset RETURN_DIR
 	done
-	echo "clean:"							>> $OUT_FILE
-	for SUBDIR in $SUBDIRS; do
-		echo "	cd $SUBDIR; \$(MAKE) clean"			>> $OUT_FILE
-	done
-	echo ""								>> $OUT_FILE
 	;;
 prog)
 	TARGET=`get_field TARGET`
@@ -70,66 +194,15 @@ prog)
 		INSTALL_DIR=$INSTALL_DIR/
 	fi
 
-	if [ -e $OUT_FILE ]; then
-		rm $OUT_FILE
-	fi
-
-	touch $OUT_FILE
-	echo ".POSIX:" 							>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	echo "TARGET=$BUILD_DIR/$TARGET"				>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	echo "all: \$(TARGET)"						>> $OUT_FILE
-	echo "	"							>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	echo "\$(TARGET): $BUILD_DIR $OBJS"				>> $OUT_FILE
-	echo "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"	>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	for SRC_FILE in $SRCS; do
-
-		case $SRC_FILE in
-		*.c)
-			BASEDIR=`dirname $SRC_FILE`
-			INCLUDES=`cat $SRC_FILE | grep "^\s*#\s*include\s\+\".*\"" | \
-				sed -n -e "s/^\s*#\s*include\s\+\"/$BASEDIR\//p" | sed -n -e 's/\"\s*$//p' \
-				| tr '\r\n' '\n' | tr '\n' ' '`
-			echo_debug "Include files for $SRC_FILE"
-			echo_debug "$INCLUDES"
-			echo_debug ""
-		
-			echo "$BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o: $BUILD_DIR $SRC_FILE $INCLUDES" 	>> $OUT_FILE
-			echo "	\$(CC) \$(CFLAGS) -c -o $BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o $SRC_FILE"	>> $OUT_FILE
-			echo ""											>> $OUT_FILE
-			unset INCLUDES
-			;;
-		*.s)
-			echo "$BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o: $BUILD_DIR $SRC_FILE"			>> $OUT_FILE
-			echo "	\$(AS) \$(ASFLAGS) -o $BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o $SRC_FILE"	>> $OUT_FILE
-			;;
-		*)
-			echo "ERROR: $SRC_FILE has an unsupported file extension" 1>&2
-			exit 1
-			;;
-		esac
-	done
-	echo "$BUILD_DIR:"						>> $OUT_FILE
-	echo "	mkdir -p $BUILD_DIR"					>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	echo "install: $PREFIX$INSTALL_DIR \$(TARGET)"			>> $OUT_FILE
-	echo "	cp \$(TARGET) $PREFIX$INSTALL_DIR"			>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	echo "$PREFIX$INSTALL_DIR:"					>> $OUT_FILE
-	echo "	mkdir -p $PREFIX$INSTALL_DIR"				>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	echo "clean:"							>> $OUT_FILE
-	echo "	rm -rf $BUILD_DIR"					>> $OUT_FILE
-	echo ""								>> $OUT_FILE
-	
-	echo ""								>> $OUT_FILE
+	write_prog
 	;;
-
+lib)
+	TARGET=`get_field TARGET`
+	
+	write_lib
+	;;
 *)
-	echo "Invalid TYPE field or TYPE field missing" 1>&2
+	echo "`realpath $IN_FILE`: Invalid TYPE field or TYPE field missing" 1>&2
 	;;
 esac
 

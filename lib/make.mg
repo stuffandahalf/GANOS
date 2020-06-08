@@ -1,0 +1,3 @@
+TYPE=meta
+SUBDIRS=libc
+
