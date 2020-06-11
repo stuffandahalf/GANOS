@@ -11,6 +11,16 @@
 # 
 # -p				prefix to be prepended to any install targets
 # 
+# -c				c compiler options
+#
+# -s				as options
+# 
+# -+				c++ compiler options
+# 
+# -t				build type
+# 
+# -h				print help message
+# 
 ################################################################################
 
 ################################# make.mg help #################################
@@ -46,6 +56,7 @@
 # 
 ################################################################################
 
+set -e
 
 DEBUG=true
 # emits a debug message to stderr if $DEBUG=true
@@ -59,7 +70,9 @@ echo_debug()
 # retrieves field $1 from $FIELDS
 get_field()
 {
-	echo "$FIELDS" | grep "^$1[[:space:]]*=[[:space:]]*" | sed -n -e "s/^$1[[:space:]]*=[[:space:]]*//p"
+	echo "$FIELDS" | \
+		grep "^$1[[:space:]]*=[[:space:]]*" | \
+		sed -n -e "s/^$1[[:space:]]*=[[:space:]]*//p"
 }
 
 # writes all arguments to $OUT_FILEss
@@ -190,24 +203,86 @@ write_meta()
 	emit ""
 	for SUBDIR in $SUBDIRS; do
 		emit "$SUBDIR.dir: $SUBDIR"
-		emit "	cd $SUBDIR; \$(MAKE) all"
+		emit "	cd $SUBDIR && \$(MAKE) all"
 		emit ""
 	done
 	emit "install: $SUBDIR_TARGETS"
 	for SUBDIR in $SUBDIRS; do
-		emit "	cd $SUBDIR; \$(MAKE) install"
+		emit "	cd $SUBDIR && \$(MAKE) install"
 	done
 	emit ""
 	emit "clean:"
 	for SUBDIR in $SUBDIRS; do
-		emit "	cd $SUBDIR; \$(MAKE) clean"
+		emit "	cd $SUBDIR && \$(MAKE) clean"
 	done
 	emit ""
 }
 
-IN_FILE=make.mg
-OUT_FILE=Makefile
-BUILD_DIR=build
+if [ -z $PROJ_ROOT ]; then
+	export PROJ_ROOT="$PWD"
+fi
+if [ -z $IN_FILE ]; then
+	export IN_FILE=make.mg
+fi
+if [ -z $OUT_FILE ]; then
+	export OUT_FILE=Makefile
+fi
+if [ -z $BUILD_DIR ]; then
+	export BUILD_DIR="$PROJ_ROOT/build"
+fi
+if [ -z $BUILD_TYPE ]; then
+	export BUILD_TYPE=release
+fi
+if [ -z $BUILD_TYPE ]; then
+	export CFLAGS="-O3 -DNDEBUG"
+fi
+if [ ! -z $PREFIX ]; then
+	export PREFIX=`echo $(cd $(dirname "$PREFIX") && pwd -P)/$(basename "$PREFIX")`
+fi
+
+
+while getopts f:s:c:+:h flag; do
+	case $flag in
+	f)
+		echo_debug "Flag -f $OPTARG"
+		IN_FILE=$OPTARG
+		;;
+	s)
+		echo_debug "Flag -s $OPTARG"
+		;;
+	c)
+		echo_debug "Flag -c $OPTARG"
+		;;
+	+)
+		echo_debug "Flag -+ $OPTARG"
+		;;
+	t)
+		echo_debug "Flag -t $OPTARG"
+		case $OPTARG in
+		debug)
+			echo_debug "Build type set to \"$OPTARG\""
+			;;
+		release)
+			echo_debug "Build_type set to \"$OPTARG\""
+			;;
+		*)
+			echo "Build type \"$OPTARG\" is unrecognized" 1>&2
+			;;
+		esac
+		;;
+	h)
+		echo_debug "Flag -h"
+		print_help
+		exit 0
+		;;
+	*)
+		echo "Unrecognized flag \"$flag\"" 1>&2
+		echo ""
+		print_help
+		exit 1
+		;;
+	esac
+done
 
 FIELDS=`cat "$IN_FILE"`
 
@@ -251,15 +326,15 @@ prog)
 
 	OBJS=
 	for SRC_FILE in $SRCS; do
-		OBJS="$OBJS build/`echo $SRC_FILE | tr '/' '.'`.o"
+		OBJS="$OBJS $BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o"
 	done
 
 	echo_debug $PREFIX
 	if [ "{$PREFIX#${PREFIX%?}}" != / ]; then
-		PREFIX=$PREFIX/
+		PREFIX="$PREFIX/"
 	fi
 	if [ "{$INSTALL_DIR#${INSTALL_DIR%?}}" != / ]; then
-		INSTALL_DIR=$INSTALL_DIR/
+		INSTALL_DIR="$INSTALL_DIR/"
 	fi
 
 	write_prog
