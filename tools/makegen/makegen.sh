@@ -88,6 +88,13 @@ realpath()
 	echo "$(cd "$(dirname "$1")"; pwd -P)/$(basename "$1")"
 }
 
+relpath()
+{
+	echo_debug "$1"
+	echo_debug "$2"
+	echo "$1" | tr '/' '\$' | sed -n -e "s/^`echo \"$2\" | tr '/' '\$'`//p" | tr '\$' '/'
+}
+
 # $1 = source file
 emit_compile()
 {
@@ -229,7 +236,10 @@ if [ -z $OUT_FILE ]; then
 fi
 if [ -z $BUILD_DIR ]; then
 	export BUILD_DIR="$PROJ_ROOT/build"
+else
+	export BUILD_DIR="$PROJ_ROOT/build/`relpath \"$PWD\" \"$PROJ_ROOT\"`"
 fi
+echo_debug "\$BUILD_DIR = \"$BUILD_DIR\""
 if [ -z $BUILD_TYPE ]; then
 	export BUILD_TYPE=release
 fi
@@ -237,7 +247,7 @@ if [ -z $BUILD_TYPE ]; then
 	export CFLAGS="-O3 -DNDEBUG"
 fi
 if [ ! -z $PREFIX ]; then
-	export PREFIX=`echo $(cd $(dirname "$PREFIX") && pwd -P)/$(basename "$PREFIX")`
+	export PREFIX=`realpath $PREFIX`
 fi
 
 
