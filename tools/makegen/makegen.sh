@@ -251,7 +251,7 @@ if [ ! -z $PREFIX ]; then
 fi
 
 
-while getopts f:s:c:+:h flag; do
+while getopts f:s:c:+:t:p:h flag; do
 	case $flag in
 	f)
 		echo_debug "Flag -f $OPTARG"
@@ -279,6 +279,9 @@ while getopts f:s:c:+:h flag; do
 			echo "Build type \"$OPTARG\" is unrecognized" 1>&2
 			;;
 		esac
+		;;
+	p)
+		export PREFIX=`realpath $OPT`
 		;;
 	h)
 		echo_debug "Flag -h"
