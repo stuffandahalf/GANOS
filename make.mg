@@ -1,4 +1,3 @@
 TYPE=meta
-SUBDIRS=bin
-usr/bin
+SUBDIRS=bin usr/bin
 

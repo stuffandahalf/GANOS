@@ -50,7 +50,7 @@ main(int argc, char **argv)
 			flags |= VFLAG;
 			break;
 		case '?':
-			fprintf(stderr, "Unrecognized option: '-%c'\n", optopt);
+			fprintf(stderr, "Unrecognized option: '-%c'\n", c);
 			break;
 		}	
 	}

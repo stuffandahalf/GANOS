@@ -144,20 +144,20 @@ write_prog()
 	emit "all: \$(TARGET)"
 	emit "	"
 	emit ""
-	emit "\$(TARGET): $BUILD_DIR $OBJS"
+	emit "\$(TARGET): '$BUILD_DIR' $OBJS"
 	emit "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"
 	emit ""
 	for SRC_FILE in $SRCS; do
 		emit_compile $SRC_FILE
 	done
-	emit "$BUILD_DIR:"
-	emit "	mkdir -p $BUILD_DIR"
+	emit "'$BUILD_DIR':"
+	emit "	mkdir -p '$BUILD_DIR'"
 	emit ""
-	emit "install: $PREFIX$INSTALL_DIR \$(TARGET)"
-	emit "	cp \$(TARGET) $PREFIX$INSTALL_DIR"
+	emit "install: '$PREFIX$INSTALL_DIR' \$(TARGET)"
+	emit "	cp \$(TARGET) '$PREFIX$INSTALL_DIR'"
 	emit ""
-	emit "$PREFIX$INSTALL_DIR:"
-	emit "	mkdir -p $PREFIX$INSTALL_DIR"
+	emit "'$PREFIX$INSTALL_DIR':"
+	emit "	mkdir -p '$PREFIX$INSTALL_DIR'"
 	emit ""
 	emit "clean:"
 	emit "	rm -rf $BUILD_DIR"
@@ -225,16 +225,16 @@ write_meta()
 	emit ""
 }
 
-if [ -z $PROJ_ROOT ]; then
+if [ -z "$PROJ_ROOT" ]; then
 	export PROJ_ROOT="$PWD"
 fi
-if [ -z $IN_FILE ]; then
+if [ -z "$IN_FILE" ]; then
 	export IN_FILE=make.mg
 fi
-if [ -z $OUT_FILE ]; then
+if [ -z "$OUT_FILE" ]; then
 	export OUT_FILE=Makefile
 fi
-if [ -z $BUILD_DIR ]; then
+if [ -z "$BUILD_DIR" ]; then
 	export BUILD_DIR="$PROJ_ROOT/build"
 else
 	export BUILD_DIR="$PROJ_ROOT/build/`relpath \"$PWD\" \"$PROJ_ROOT\"`"
@@ -246,8 +246,11 @@ fi
 if [ -z $BUILD_TYPE ]; then
 	export CFLAGS="-O3 -DNDEBUG"
 fi
-if [ ! -z $PREFIX ]; then
-	export PREFIX=`realpath $PREFIX`
+if [ ! -z "$PREFIX" ]; then
+	export PREFIX=`realpath "$PREFIX"`
+fi
+if [ -z "$MAKEGEN" ]; then
+	export MAKEGEN=`realpath "$0"`
 fi
 
 
@@ -281,7 +284,7 @@ while getopts f:s:c:+:t:p:h flag; do
 		esac
 		;;
 	p)
-		export PREFIX=`realpath $OPT`
+		export PREFIX=`realpath "$OPTARG"`
 		;;
 	h)
 		echo_debug "Flag -h"
@@ -320,7 +323,7 @@ meta)
 	write_meta
 	for SUBDIR in $SUBDIRS; do
 		RETURN_DIR=`echo $PWD`
-		cd $SUBDIR; ../$0; cd $RETURN_DIR
+		cd "$SUBDIR" && "$MAKEGEN" && cd "$RETURN_DIR"
 		unset RETURN_DIR
 	done
 	;;
@@ -342,7 +345,7 @@ prog)
 		OBJS="$OBJS $BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o"
 	done
 
-	echo_debug $PREFIX
+	echo_debug "\$PREFIX = $PREFIX"
 	if [ "{$PREFIX#${PREFIX%?}}" != / ]; then
 		PREFIX="$PREFIX/"
 	fi
