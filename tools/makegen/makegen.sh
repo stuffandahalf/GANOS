@@ -81,6 +81,17 @@ emit()
 	echo "$@" >> $OUT_FILE
 }
 
+fail()
+{
+	if [ ! -z "$@" ]; then
+		echo ERROR: "$@" 1>&2
+	fi
+	if [ -e "$OUT_FILE" ]; then
+		rm $OUT_FILE
+	fi
+	exit 1
+}
+
 # from https://stackoverflow.com/questions/3915040/bash-fish-command-to-print-absolute-path-to-a-filehttps://stackoverflow.com/questions/3915040/bash-fish-command-to-print-absolute-path-to-a-file
 # $1 = a path to a file
 realpath()
@@ -121,9 +132,7 @@ emit_compile()
 		emit "	\$(AS) \$(ASFLAGS) -o $BUILD_DIR/`echo $SRC_FILE | tr '/' '.'`.o $SRC_FILE"
 		;;
 	*)
-		echo "ERROR: $SRC_FILE has an unsupported file extension" 1>&2
-		rm "$OUT_FILE"
-		exit 1
+		fail "$SRC_FILE has an unsupported file extension" 1>&2
 		;;
 	esac
 }
@@ -144,20 +153,20 @@ write_prog()
 	emit "all: \$(TARGET)"
 	emit "	"
 	emit ""
-	emit "\$(TARGET): '$BUILD_DIR' $OBJS"
+	emit "\$(TARGET): $BUILD_DIR $OBJS"
 	emit "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"
 	emit ""
 	for SRC_FILE in $SRCS; do
 		emit_compile $SRC_FILE
 	done
-	emit "'$BUILD_DIR':"
-	emit "	mkdir -p '$BUILD_DIR'"
+	emit "$BUILD_DIR:"
+	emit "	mkdir -p $BUILD_DIR"
 	emit ""
-	emit "install: '$PREFIX$INSTALL_DIR' \$(TARGET)"
-	emit "	cp \$(TARGET) '$PREFIX$INSTALL_DIR'"
+	emit "install: $PREFIX$INSTALL_DIR \$(TARGET)"
+	emit "	cp \$(TARGET) $PREFIX$INSTALL_DIR"
 	emit ""
-	emit "'$PREFIX$INSTALL_DIR':"
-	emit "	mkdir -p '$PREFIX$INSTALL_DIR'"
+	emit "$PREFIX$INSTALL_DIR:"
+	emit "	mkdir -p $PREFIX$INSTALL_DIR"
 	emit ""
 	emit "clean:"
 	emit "	rm -rf $BUILD_DIR"
@@ -279,7 +288,7 @@ while getopts f:s:c:+:t:p:h flag; do
 			echo_debug "Build_type set to \"$OPTARG\""
 			;;
 		*)
-			echo "Build type \"$OPTARG\" is unrecognized" 1>&2
+			fail "Build type \"$OPTARG\" is unrecognized"
 			;;
 		esac
 		;;
@@ -361,7 +370,7 @@ lib)
 	write_lib
 	;;
 *)
-	echo "`realpath $IN_FILE`: Invalid TYPE field or TYPE field missing" 1>&2
+	fail "`realpath $IN_FILE`: Invalid TYPE field or TYPE field missing"
 	;;
 esac
 
