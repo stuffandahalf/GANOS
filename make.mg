@@ -1,3 +1,3 @@
 TYPE=meta
-SUBDIRS=bin usr/bin
+SUBDIRS=bin lib usr/bin
 
