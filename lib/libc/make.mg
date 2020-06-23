@@ -1,5 +1,7 @@
 TYPE=lib
 LIB_TYPE=shared
-TARGET=libc.so
+TARGET=c
 SRCS=unistd/*.c
 INSTALL_DIR=/lib
+CFLAGS=
+
