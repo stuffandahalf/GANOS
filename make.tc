@@ -1,5 +1,7 @@
 AS=tools/llvm/bin/clang
 CC=tools/llvm/bin/clang
 LD=tools/llvm/bin/ld.lld
-CFLAGS=--target=i386-none-elf
+ASFLAGS=--target=i386-none-elf -nolibc
+CFLAGS=--target=i386-none-elf -nolibc
+LDFLAGS=--target=i386-none-elf -nolibc
 

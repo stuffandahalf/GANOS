@@ -201,7 +201,8 @@ write_prog()
 	emit ""
 	emit ""
 	emit "\$(TARGET): \$(BUILD_DIR)/.dirstamp $OBJS"
-	emit "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"
+	#emit "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"
+	emit "	$LINKER \$(LDFLAGS) -o \$(TARGET) $OBJS"
 	emit ""
 	for SRC_FILE in $SRCS; do
 		emit_compile $SRC_FILE
@@ -235,7 +236,8 @@ write_lib()
 	emit ""
 	emit ""
 	emit "\$(TARGET): \$(BUILD_DIR)/.dirstamp $OBJS"
-	emit "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"
+	#emit "	$LINKER \$(CFLAGS) \$(LDFLAGS) -o \$(TARGET) $OBJS"
+	emit "	$LINKER \$(LDFLAGS) -o \$(TARGET) $OBJS"
 	emit ""
 	for SRC_FILE in $SRCS; do
 		emit_compile $SRC_FILE
@@ -311,20 +313,20 @@ while getopts f:b:t:p:h flag; do
 		TOOLCHAIN=`cat "$OPTARG"`
 		if [ -z "$AS" ]; then
 			AS="`dirname $OPTARG`/`get_field AS \"$TOOLCHAIN\"`"
-			AS="`realpath \"$AS\"`"
+			export AS="`realpath \"$AS\"`"
 		fi
 		if [ -z "$CC" ]; then
 			CC="`dirname $OPTARG`/`get_field CC \"$TOOLCHAIN\"`"
-			CC="`realpath \"$CC\"`"
+			export CC="`realpath \"$CC\"`"
 		fi
 		if [ -z "$LD" ]; then
 			LD="`dirname $OPTARG`/`get_field LD \"$TOOLCHAIN\"`"
-			LD="`realpath \"$LD\"`"
+			export LD="`realpath \"$LD\"`"
 			#LD="`realpath \"\`dirname $OPTARG`/`get_field LD \"$TOOLCHAIN\"\`\"`"
 		fi
-		ASFLAGS="$ASFLAGS `get_field ASFLAGS \"$TOOLCHAIN\"`"
-		CFLAGS="$CFLAGS `get_field CFLAGS \"$TOOLCHAIN\"`"
-		LDFLAGS="$LDFLAGS `get_field LDFLAGS \"$TOOLCHAIN\"`"
+		export ASFLAGS="$ASFLAGS `get_field ASFLAGS \"$TOOLCHAIN\"`"
+		export CFLAGS="$CFLAGS `get_field CFLAGS \"$TOOLCHAIN\"`"
+		export LDFLAGS="$LDFLAGS `get_field LDFLAGS \"$TOOLCHAIN\"`"
 		
 		echo_debug "TOOLCHAIN VALUES START"
 		echo_debug "	\$AS=$AS"
@@ -435,12 +437,12 @@ lib)
 	
 	case $LIB_TYPE in
 	static)
-		#LDFLAGS=
+		LDFLAGS="$LDFLAGS -static"
 		TARGET="lib$TARGET.a"
 		;;
 	shared)
 		CFLAGS="$CFLAGS -fpic"
-		LDFLAGS="$LDFLAGS -static"
+		LDFLAGS="$LDFLAGS -shared"
 		TARGET="lib$TARGET.so"
 		;;
 	*)
