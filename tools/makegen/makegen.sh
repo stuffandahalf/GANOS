@@ -61,7 +61,7 @@
 
 set -e
 
-DEBUG=true
+#DEBUG=true
 # emits a debug message to stderr if $DEBUG=true
 echo_debug()
 {
@@ -354,7 +354,7 @@ while getopts f:b:t:p:h flag; do
 	esac
 done
 
-FIELDS=`cat "$IN_FILE"`
+FIELDS="`cat "$IN_FILE"`"
 MG_TYPE="`get_field TYPE \"$FIELDS\"`"
 ASFLAGS="$ASFLAGS `get_field ASFLAGS \"$FIELDS\"`"
 CFLAGS="$CFLAGS `get_field CFLAGS \"$FIELDS\"`"
@@ -392,14 +392,16 @@ meta)
 	write_meta
 	for SUBDIR in $SUBDIRS; do
 		RETURN_DIR=`echo $PWD`
+		echo "ENTERING $SUBDIR"
 		cd "$SUBDIR" && "$MAKEGEN" && cd "$RETURN_DIR"
+		echo "EXITING $SUBDIR"
 		unset RETURN_DIR
 	done
 	;;
 prog)
 	TARGET=`get_field TARGET "$FIELDS"`
-	SRCS=`get_field SRCS "$FIELDS"`
-	SRCS=`echo $SRCS "$FIELDS"`
+	SRCS="`get_field SRCS \"$FIELDS\"`"
+	SRCS=`echo $SRCS`
 	INSTALL_DIR=`get_field INSTALL_DIR "$FIELDS"`
 	LINKER=`get_field LINKER "$FIELDS"`
 	if [ -z "$LINKER" ]; then
