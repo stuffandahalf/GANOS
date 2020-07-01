@@ -71,3 +71,6 @@ tools/llvm*
 
 # cmake build files
 *build*
+
+# makegen Makefiles
+*Makefile

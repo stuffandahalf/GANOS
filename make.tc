@@ -1,6 +1,8 @@
+ARCH=i386
 AS=tools/llvm/bin/clang
 CC=tools/llvm/bin/clang
 LD=tools/llvm/bin/ld.lld
-ASFLAGS=--target=i386-none-elf -nostdinc -fuse-ld=$(LD)
-CFLAGS=--target=i386-none-elf -nostdinc -fuse-ld=$(LD)
-LDFLAGS=--target=i386-none-elf -nolibc
+ASFLAGS=--target=$(ARCH)-none-elf -nostdinc -fuse-ld=$(LD)
+CFLAGS=--target=$(ARCH)-none-elf -nostdinc -fuse-ld=$(LD)
+LDFLAGS=--target=$(ARCH)-none-elf -nolibc
+INCLUDE_DIRS=include
