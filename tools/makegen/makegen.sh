@@ -81,6 +81,8 @@
 # 	LDFLAGS			Flags to be passed to the linker during the
 # 					linking step
 # 
+# 	INCLUDE_DIRS	Directories to be searched for headers
+# 
 ###############################################################################
 
 set -e
