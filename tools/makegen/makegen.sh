@@ -30,11 +30,22 @@
 #					meta	- builds all sub-targets. see meta/SUBDIRS field
 #                             for more
 # 
+# 	INCLUDE_DIRS	Directories to be searched for include headers
+# 
+# 	ARCH			The architecture for the target or subdirs
+# 
+# 	OS				The OS the target is designed to run on
+# 
+# 	EXE_FMT			The executable format for the target
+# 
 # prog fields
 # 
 # 	TARGET			the name of the executable to be built
 # 
 # 	SRCS			the list or pattern for all required source files
+# 
+# 	$ARCH_SRCS		optional source files only included if $ARCH matches
+# 					the value of the ARCH field
 # 
 # 	INSTALL_DIR		when the install target of the makefile is run, install
 # 					TARGET to $PREFIX/$INSTALL_DIR/
@@ -48,6 +59,9 @@
 # 	TARGET			the name of the library to be build
 #
 # 	SRCS			the list of pattern for all required source files
+# 
+# 	$ARCH_SRCS		optional source files only include if $ARCH matches the
+# 					value of the ARCH field
 # 
 # 	INSTALL_DIR		when the install target of the makefile is run, install
 # 					TARGET TO $PREFIX/$INSTALL_DIR/
@@ -87,7 +101,7 @@
 
 set -e
 
-#DEBUG=true
+DEBUG=true
 # emits a debug message to stderr if $DEBUG=true
 echo_debug()
 {
@@ -191,6 +205,12 @@ write_common_header()
 	emit ""
 	if [ ! -z "$ARCH" ]; then
 		emit "ARCH=$ARCH"
+	fi
+	if [ ! -z "$OS" ]; then
+		emit "OS=$OS"
+	fi
+	if [ ! -z "$EXE_FMT" ]; then
+		emit "EXE_FMT=$EXE_FMT"
 	fi
 	emit "ASFLAGS=$ASFLAGS"
 	emit "CFLAGS=$CFLAGS"
@@ -361,8 +381,13 @@ while getopts f:b:t:p:h flag; do
 			export LD="`realpath \"$LD\"`"
 		fi
 		if [ -z "$ARCH" ]; then
-			ARCH="`get_field ARCH \"$TOOLCHAIN\"`"
-			export ARCH
+			export ARCH="`get_field ARCH \"$TOOLCHAIN\"`"
+		fi
+		if [ -z "$OS" ]; then
+			export OS="`get_field OS \"$TOOLCHAIN\"`"
+		fi
+		if [ -z "$EXE_FMT" ]; then
+			export EXE_FMT="`get_field EXE_FMT \"$TOOLCHAIN\"`"
 		fi
 		export ASFLAGS="$ASFLAGS `get_field ASFLAGS \"$TOOLCHAIN\"`"
 		export CFLAGS="$CFLAGS `get_field CFLAGS \"$TOOLCHAIN\"`"
@@ -381,6 +406,9 @@ while getopts f:b:t:p:h flag; do
 		echo_debug "	\$ASFLAGS=$ASFLAGS"
 		echo_debug "	\$CFLAGS=$CFLAGS"
 		echo_debug "	\$LDFLAGS=$LDFLAGS"
+		echo_debug "	\$ARCH=$ARCH"
+		echo_debug "	\$OS=$OS"
+		echo_debug "	\$EXE_FMT=$EXE_FMT"
 		echo_debug "TOOLCHAIN VALUES END"
 		;;
 	p)
@@ -405,6 +433,21 @@ MG_TYPE="`get_field TYPE \"$FIELDS\"`"
 ASFLAGS="$ASFLAGS `get_field ASFLAGS \"$FIELDS\"`"
 CFLAGS="$CFLAGS `get_field CFLAGS \"$FIELDS\"`"
 LDFLAGS="$LDFLAGS `get_field LDFLAGS \"$FIELDS\"`"
+NEW_ARCH="`get_field ARCH \"$FIELDS\"`"
+if [ ! -z "$NEW_ARCH" ]; then
+	export ARCH="$NEW_ARCH"
+fi
+unset NEW_ARCH
+NEW_OS="`get_field OS \"$FIELDS\"`"
+if [ ! -z "$NEW_OS" ]; then
+	export OS="$NEW_OS"
+fi
+unset NEW_OS
+NEW_EXE_FMT="`get_field EXE_FMT \"$FIELDS\"`"
+if [ ! -z "$NEW_EXE_FMT" ]; then
+	export EXE_FMT="$NEW_EXE_FMT"
+fi
+unset NEW_EXE_FMT
 
 case "$BUILD_TYPE" in
 debug)
@@ -447,6 +490,9 @@ meta)
 prog)
 	TARGET=`get_field TARGET "$FIELDS"`
 	SRCS="`get_field SRCS \"$FIELDS\"`"
+	if [ ! -z "$ARCH" ]; then
+		SRCS="$SRCS `get_field ${ARCH}_SRCS \"$FIELDS\"`"
+	fi
 	SRCS=`echo $SRCS`
 	INSTALL_DIR=`get_field INSTALL_DIR "$FIELDS"`
 	LINKER=`get_field LINKER "$FIELDS"`
@@ -473,12 +519,15 @@ prog)
 	write_prog
 	;;
 lib)
-	LIB_TYPE=`get_field LIB_TYPE "$FIELDS"`
-	TARGET=`get_field TARGET "$FIELDS"`
-	SRCS=`get_field SRCS "$FIELDS"`
-	SRCS=`echo $SRCS`
-	INSTALL_DIR=`get_field INSTALL_DIR "$FIELDS"`
-	LINKER=`get_field LINKER "$FIELDS"`
+	LIB_TYPE="`get_field LIB_TYPE \"$FIELDS\"`"
+	TARGET="`get_field TARGET \"$FIELDS\"`"
+	SRCS="`get_field SRCS \"$FIELDS\"`"
+	if [ ! -z "$ARCH" ]; then
+		SRCS="$SRCS `get_field ${ARCH}_SRCS \"$FIELDS\"`"
+	fi
+	SRCS="`echo $SRCS`"
+	INSTALL_DIR="`get_field INSTALL_DIR \"$FIELDS\"`"
+	LINKER="`get_field LINKER \"$FIELDS\"`"
 	if [ -z "$LINKER" ]; then
 		LINKER="\$(CC)"
 	fi
