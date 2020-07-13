@@ -4,7 +4,9 @@ EXE_FMT=elf
 AS=tools/llvm/bin/clang
 CC=tools/llvm/bin/clang
 LD=tools/llvm/bin/ld.lld
-ASFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nostdinc -fuse-ld=$(LD)
-CFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nostdinc -fuse-ld=$(LD)
-LDFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nolibc
+_ASFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nostdinc -fuse-ld=$(LD)
+ASFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nostdinc
+_CFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nostdinc -fuse-ld=$(LD)
+CFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nostdinc
+_LDFLAGS=--target=$(ARCH)-$(OS)-$(EXE_FMT) -nolibc -fuse-ld=$(LD)
 INCLUDE_DIRS=include

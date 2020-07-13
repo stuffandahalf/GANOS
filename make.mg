@@ -1,3 +1,4 @@
 TYPE=meta
-SUBDIRS=bin boot lib usr/bin
+SUBDIRS=lib
+_SUBDIRS=bin boot lib usr/bin
 
