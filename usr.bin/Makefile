@@ -1,6 +1,7 @@
 .POSIX:
 
 SUBDIRS=\
+		clear \
 		make \
 		pwd \
 		uname
