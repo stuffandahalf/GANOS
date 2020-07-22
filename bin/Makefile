@@ -1,6 +1,7 @@
 .POSIX:
 
 SUBDIRS=\
+		cat \
 		echo \
 		ed \
 		sh
