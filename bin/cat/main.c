@@ -35,8 +35,9 @@ main(int argc, char *argv[])
 			skip_nl = 0;
 			if (!strcmp("-", argv[i])) {
 				fp = stdin;
+			} else {
+				fp = fopen(argv[i], "r");
 			}
-			fp = fopen(argv[i], "r");
 			if (fp == NULL) {
 				fprintf(stderr, "%s: %s: %s\n", argv[0], argv[i],
 					strerror(errno));
