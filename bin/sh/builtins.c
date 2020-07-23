@@ -9,7 +9,9 @@
 #else
 #include <unistd.h>
 #endif /* defined(_WIN32) */
+
 #include "builtins.h"
+#include "lookup.h"
 
 /* This is a naive implementation. */
 /* Should reimplement as trie-type structure */
@@ -19,9 +21,10 @@ struct lookup_entry {
 };
 
 static struct lookup_entry
-lookup[] = {
+lookup_table[] = {
 	{ "cd",		cd },
 	{ "exit",	shexit },
+	{ "which",	which },
 	{ 0 }
 };
 
@@ -30,7 +33,7 @@ builtin_lookup(const char *util)
 {
 	struct lookup_entry *entry;
 	
-	for (entry = lookup; entry->util != NULL; entry++) {
+	for (entry = lookup_table; entry->util != NULL; entry++) {
 		if (!strcmp(util, entry->util)) {
 			return entry->function;
 		}
@@ -57,5 +60,26 @@ shexit(int argc, char *argv[])
 {
 	write(0, "exit called\n", 12);
 	return 1;
+}
+
+int
+which(int argc, char *argv[])
+{
+	union util_path util;
+	const char *short_name = argv[1];
+
+	int type = lookup(short_name, &util);
+	switch (type) {
+	case UTIL_LOOKUP_BUILTIN:
+		printf("%s: shell built-in command\n", short_name);
+		break;
+	case UTIL_LOOKUP_ALIAS:
+		break;
+	case UTIL_LOOKUP_PATH:
+		break;
+	case UTIL_LOOKUP_NOTFOUND:
+		break;
+	}
+	return 0;
 }
 
