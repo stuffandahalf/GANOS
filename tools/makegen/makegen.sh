@@ -370,21 +370,21 @@ while getopts f:b:t:p:h flag; do
 		TOOLCHAIN=`cat "$OPTARG"`
 		if [ -z "$AS" ]; then
 			AS="`get_field AS \"$TOOLCHAIN\"`"
-			if ! command -v "$AS" &> /dev/null; then
+			if ! command -v "$AS" 2>&1 > /dev/null; then
 				AS="$(realpath $(dirname $OPTARG)/$AS)"
 			fi
 			export AS
 		fi
 		if [ -z "$CC" ]; then
 			CC="`get_field CC \"$TOOLCHAIN\"`"
-			if ! command -v "$CC" &> /dev/null; then
+			if ! command -v "$CC" 2>&1 > /dev/null; then
 				CC="$(realpath $(dirname $OPTARG)/$CC)"
 			fi
 			export CC
 		fi
 		if [ -z "$LD" ]; then
 			LD="`get_field LD \"$TOOLCHAIN\"`"
-			if ! command -v "$LD" &> /dev/null; then
+			if ! command -v "$LD" 2>&1 > /dev/null; then
 				LD="$(realpath $(dirname $OPTARG)/$LD)"
 			fi
 			export LD
