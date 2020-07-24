@@ -101,7 +101,7 @@
 
 set -e
 
-DEBUG=true
+#DEBUG=true
 # emits a debug message to stderr if $DEBUG=true
 echo_debug()
 {
@@ -506,8 +506,8 @@ prog)
 	INSTALL_DIR="`get_field INSTALL_DIR "$FIELDS"`"
 	LINKER="`get_field LINKER "$FIELDS"`"
 	if [ -z "$LINKER" ]; then
-		#LINKER="\$(CC)"
-		LINKER="\$(LD)"
+		LINKER="\$(CC)"
+		#LINKER="\$(LD)"
 	fi
 
 	echo_debug "\$TARGET has value '$TARGET'"
