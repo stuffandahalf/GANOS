@@ -1,0 +1,15 @@
+#include <stdio.h>
+
+int
+main(int argc, char **argv)
+{
+#ifdef __GNUC__
+#ifdef __clang__
+	printf("CLANG\n");
+#else
+	printf("GCC\n");
+#endif /* __clang__ */
+#endif /* __GNUC__ */
+	return 0;
+}
+
