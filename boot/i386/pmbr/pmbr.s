@@ -129,7 +129,7 @@ locate_efi_part:
 	addl $1, 8(%si)
 	adcl $0, 12(%si)
 	jmp 1b	# last partition in sector
-3:
+3:	# What to do next
 	addw 84(%di), %bx
 	decl 80(%di)
 	jz 4f
@@ -138,10 +138,12 @@ locate_efi_part:
 	movw $no_efi_str, %si
 	call print
 	jmp halt
-	
 5:	# found EFI partition
 	movw $found_efi_str, %si
 	call print
+	
+load_efi_part:
+	
 
 halt:
 	cli

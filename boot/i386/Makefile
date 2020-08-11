@@ -28,7 +28,7 @@ test-pmbr.img: pmbr.dir gptboot.dir
 	sudo losetup -d `losetup -j $@ | grep -o "/dev/loop[0-9]*"`
 	rmdir ./image_mnt
 	unset LP_DEV
-	qemu-system-i386 -hda $@ -display curses
+	#qemu-system-i386 -hda $@ -display curses
 
 clean:
 	for SUBDIR in $(SUBDIRS); do \
