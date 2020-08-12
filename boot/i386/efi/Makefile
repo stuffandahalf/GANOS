@@ -19,7 +19,7 @@ LDFLAGS=--target=$(ARCH)-unknown-windows -nostdlib -Wl,-entry:efi_main \
 .SUFFIXES: .c .o
 
 .c.o:
-	$(CC) $(CFLAGS) -I./EFI/ --target=i386-unknown-windows -o $@ $<
+	$(CC) $(CFLAGS) -I$(ROOT_DIR)/include/EFI --target=i386-unknown-windows -o $@ $<
 
 $(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJS)
