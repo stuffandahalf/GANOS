@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-#enable_language(ASM-ATT)
-project(ALiX/boot/i386 NONE)# ASM-ATT)
+project(ALiX/boot/x86)
 
 #add_subdirectory(floppy)
 #add_subdirectory(gptboot)
