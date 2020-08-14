@@ -5,5 +5,5 @@ file(GLOB_RECURSE UNISTD_SRCS unistd/*.c)
 
 add_library(c SHARED ${UNISTD_SRCS})
 
-export(EXPORT c)
+install(TARGETS c DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 

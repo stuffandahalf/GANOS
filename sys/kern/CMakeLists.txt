@@ -5,3 +5,5 @@ file(GLOB SOURCES *.c)
 
 add_executable(alix ${SOURCES})
 
+install(TARGETS alix DESTINATION ${CMAKE_INSTALL_PREFIX})
+
