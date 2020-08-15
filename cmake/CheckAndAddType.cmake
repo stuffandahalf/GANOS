@@ -1,0 +1,12 @@
+include(CheckTypeSize)
+function(CHECK_AND_ADD_TYPE PROJECT TYPE VAR_SUFFIX BUILTIN)
+	if(${BUILTIN})
+		check_type_size(${TYPE} ${VAR_SUFFIX} BUILTIN_TYPES_ONLY LANGUAGE C)
+	else()
+		check_type_size(${TYPE} ${VAR_SUFFIX})
+	endif()
+	if(${HAVE_${VAR_SUFFIX}})
+		target_compile_definitions(${PROJECT} PRIVATE HAVE_${VAR_SUFFIX} SIZEOF_${VAR_SUFFIX}=${${VAR_SUFFIX}})
+	endif()
+endfunction()
+
