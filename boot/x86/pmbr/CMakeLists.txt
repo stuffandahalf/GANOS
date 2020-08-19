@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 enable_language(ASM-ATT)
-project(ALiX/boot/i386/pmbr ASM-ATT)
+#enable_language(ASM)
+project(ALiX/boot/x86/pmbr ASM-ATT)
 
 file(GLOB_RECURSE SRC "src/*.s")
 add_executable(pmbr.bin ${SRC})
