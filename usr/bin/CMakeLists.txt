@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(ALiX/usr/bin C)
+project(ALiX/usr/bin)
 
 add_subdirectory(make)
 add_subdirectory(pwd)

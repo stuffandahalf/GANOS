@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 project(ALiX/bin/echo C)
 
-file(GLOB_RECURSE SRC "src/*.c")
-file(GLOB_RECURSE INCLUDE "src/*.h")
-add_executable(echo ${SRC} ${INCLUDE})
+set(SRC
+	src/main.c
+)
+set(HEADERS
 
-install(TARGETS echo DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+)
+add_executable(echo ${SRC} ${HEADERS})
+
+install(TARGETS echo DESTINATION bin)
 
