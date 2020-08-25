@@ -1,0 +1,7 @@
+#ifndef _ALIX_LIBC_TEST_H
+#define _ALIX_LIBC_TEST_H		1
+
+#cmakedefine01 ALIX_TEST_VAR
+
+#endif
+

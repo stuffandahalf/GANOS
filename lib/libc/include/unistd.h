@@ -1,5 +1,5 @@
-#ifndef _UNISTD_H
-#define _UNISTD_H	1
+#ifndef _ALIX_LIBC_UNISTD_H
+#define _ALIX_LIBC_UNISTD_H		1
 
 #define _POSIX_VERSION	200112L
 #define _POSIX2_VERSION	200112L
