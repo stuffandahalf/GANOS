@@ -7,7 +7,7 @@ TOOLS=$(BUILD_DIRS:.build=)
 
 #LLVM_SRC_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/llvm-project-10.0.0.tar.xz"
 
-LLVM_SRC_URL="https://github.com/stuffandahalf/llvm-project/releases/download/llvmorg-12.0.0-alix-beta1/llvm-project-12.0.0-alix-beta1.tar.xz"
+LLVM_SRC_URL="https://github.com/stuffandahalf/llvm-project/releases/download/llvmorg-12.0.0-alix-beta2/llvm-project-12.0.0-alix-beta2.tar.xz"
 
 all: $(TOOLS)
 
@@ -25,7 +25,7 @@ llvm.build: llvm.src
 
 llvm.src: llvm.tar.xz
 	unxz < llvm.tar.xz | tar x -f-
-	mv llvm-project-12.0.0-alix-beta1 $@
+	mv llvm-project-12.0.0-alix-beta2 $@
 	touch -m $@
 
 llvm.tar.xz:

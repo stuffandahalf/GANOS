@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(ALiX/lib/libc C)
 
-include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/CheckAndAddType.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/include/CheckAndAddType.cmake)
 
 set(UNISTD_SRCS
 	unistd/exit.c
@@ -20,6 +20,7 @@ target_include_directories(c
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
 		$<INSTALL_INTERFACE:usr/include>
 )
+target_link_libraries(c "-nostdlib")
 
 get_filename_component(BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR} NAME)
 foreach(HEADER ${UNCONFIGURED_HEADERS})
