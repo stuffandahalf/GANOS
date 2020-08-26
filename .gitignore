@@ -68,3 +68,6 @@ dkms.conf
 
 # LLVM build and executable files
 tools/llvm*
+
+# cmake build files
+*build*
