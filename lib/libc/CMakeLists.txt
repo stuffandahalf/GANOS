@@ -45,17 +45,13 @@ message(STATUS "\${LONG_LONG_INT}=${LONG_LONG_INT}")
 message(STATUS "\${VOID_PTR}=${VOID_PTR}")
 
 install(TARGETS c
-	#LIBRARY DESTINATION lib
-	#PUBLIC_HEADER DESTINATION usr/include
 	DESTINATION lib
 )
-install(
-	DIRECTORY include
+install(DIRECTORY include
 	DESTINATION usr
 	FILES_MATCHING PATTERN "*.h"
 )
-install(
-	DIRECTORY ${BUILD_DIR}/include
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include
 	DESTINATION usr
 	FILES_MATCHING PATTERN "*.h"
 )
