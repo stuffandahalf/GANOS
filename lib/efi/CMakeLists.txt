@@ -1,16 +1,11 @@
 cmake_minimum_required(VERSION 2.8)
 project(ALiX/lib/efi C)
 
-set(PUB_HEADERS
-	include/sys/_null.h	
-	include/stdio.h
-	include/unistd.h
-)
 set(UNCONFIGURED_HEADERS )
 
 add_library(efi INTERFACE)
-target_include_directories(c 
-	PUBLIC
+target_include_directories(efi
+	INTERFACE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
 		$<INSTALL_INTERFACE:usr/include>
@@ -23,9 +18,6 @@ foreach(HEADER ${UNCONFIGURED_HEADERS})
 	list(APPEND PUB_HEADERS ${BUILD_DIR}/${CONFIGURED_HEADER})
 endforeach()
 
-#install(TARGETS c
-#	DESTINATION lib
-#)
 install(DIRECTORY include
 	DESTINATION usr
 	FILES_MATCHING PATTERN "*.h"
