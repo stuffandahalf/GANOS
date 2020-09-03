@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.8)
 project(ALiX/libexec/ld-elf C)
 
-set(LD_ELF_VERSION_MAJOR 1)
+set(LD_ELF_VERSION_MAJOR 0)
 set(LD_ELF_VERSION_MINOR 0)
-set(LD_ELF_VERSION_PATCH 0)
-set(LD_ELF_VERSION_STRING ${LD_ELF_VERSION_MAJOR}.${LD_ELF_VERSION_MINOR}.${LD_ELF_VERSION_PATCH})
+set(LD_ELF_VERSION_PATCH 1)
+set(LD_ELF_VERSION_STRING "${LD_ELF_VERSION_MAJOR}.${LD_ELF_VERSION_MINOR}.${LD_ELF_VERSION_PATCH}")
 
 #include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/include/CheckAndAddType.cmake)
 
@@ -19,7 +19,8 @@ add_library(ld-elf SHARED ${SRC})
 set_target_properties(ld-elf
 	PROPERTIES
 		VERSION ${LD_ELF_VERSION_STRING}
-		SOVERSION ${LD_ELF_VERSION_MAJOR}
+		#		SOVERSION ${LD_ELF_VERSION_MAJOR}
+		SOVERSION 1
 		PREFIX ""
 )
 #target_include_directories(c 
