@@ -41,7 +41,7 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 #set(CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN ${TOOLS}/llvm)
 
 #if(NOT DEFINED ALIX_CMAKE_BIN_INIT)
-include_directories(${PROJECT_ROOT}/include)
+#include_directories(${PROJECT_ROOT}/include)
 #	add_library(c SHARED IMPORTED GLOBAL)
 #	set(ALIX_CMAKE_BIN_INIT YES)
 #endif()

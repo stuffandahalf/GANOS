@@ -7,11 +7,7 @@ set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/link.ld")
 target_compile_options(pmbr.bin PUBLIC "--target=${ALIX_TARGET_TRIPLE}")
 #target_link_libraries(pmbr.bin "-Ttext 0x7c00" "--oformat binary")
 target_link_libraries(pmbr.bin "-T ${LINKER_SCRIPT}" "--oformat binary")
-set_target_properties(pmbr.bin
-	PROPERTIES
-		LINK_DEPENDS "${LINKER_SCRIPT}"
-		#	LINKER_LANGUAGE C
-)
+set_target_properties(pmbr.bin PROPERTIES LINK_DEPENDS "${LINKER_SCRIPT}")
 
 install(TARGETS pmbr.bin DESTINATION boot/x86/)
 

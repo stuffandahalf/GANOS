@@ -1,6 +1,8 @@
 	.code16
 	.global _start
 
+	.extern sector_buffer
+
 _start:
 	cli
 	xorw %ax, %ax
@@ -48,7 +50,7 @@ get_disk_params:
 	addw $30, %sp
 
 load_gpt_hdr:
-	mov $0x7e00, %di
+	mov $sector_buffer, %di
 	xorl %eax, %eax
 	xorl %ebx, %ebx
 	incb %bl			# eax = 0, ebx = 1

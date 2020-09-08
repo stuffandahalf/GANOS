@@ -13,4 +13,7 @@ SECTIONS
 		*(.data .data.*)
 		*(.rodata .rodata.*)
 	}
+
+	. = 0x7e00;
+	sector_buffer = .;
 }
