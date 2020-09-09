@@ -1,0 +1,6 @@
+set(CMAKE_SHARED_LIBRARY_SONAME_C_FLAG "-Wl,-soname,")
+
+set(CMAKE_PLATFORM_USES_PATH_WHEN_NO_SONAME 1)
+
+include(Platform/UnixPaths)
+
