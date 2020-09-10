@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(ALiX/bin/echo C)
 
-include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/include/SetCStdlib.cmake)
+include(SetCStdlib)
 
 set(SRC
 	src/main.c

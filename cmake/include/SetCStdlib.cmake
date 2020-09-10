@@ -1,8 +1,0 @@
-function(SET_C_STDLIB TARGET)
-	#if(CMAKE_CROSSCOMPILING OR NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-	if(TARGET c)
-		target_link_libraries(${TARGET} "-nolibc" c)
-	else()
-		message(STATUS "target C not defined for target ${TARGET}")
-	endif()
-endfunction()

@@ -1,0 +1,7 @@
+function(SET_C_STDLIB TARGET)
+	if(TARGET c)
+		target_link_libraries(${TARGET} "-nolibc" c)
+	else()
+		message(NOTICE "target \"c\" not defined")
+	endif()
+endfunction()
