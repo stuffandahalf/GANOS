@@ -16,16 +16,18 @@ set(SRCS
 
 add_executable(alix ${SRCS})
 
-target_include_directories(alix PRIVATE include)
+target_include_directories(alix PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/include)
 target_compile_options(alix PUBLIC -ffreestanding)# -nostdinc)
 set(CMAKE_ASM-ATT_FLAGS "${CMAKE_ASM-ATT_FLAGS} --target=${ALIX_TARGET_TRIPLE}")
 target_link_options(alix PUBLIC -nostdlib)# -static)
 
 if(ALIX_KERNEL_FORMAT STREQUAL elf)
 	message(DEBUG "Kernel being built as elf application")
+	set(ALIX_KERNEL_FORMAT_ELF 1)
 	target_link_options(alix PUBLIC -static)
 elseif(ALIX_KERNEL_FORMAT STREQUAL efi)
 	message(DEBUG "Kernel being built as efi application")
+	set(ALIX_KERNEL_FORMAT_EFI 1)
 	set(EFI_SRCS efi/bootstrap.c)
 	target_sources(alix PRIVATE ${EFI_SRCS})
 	if(TARGET efi)
@@ -37,6 +39,7 @@ elseif(ALIX_KERNEL_FORMAT STREQUAL multiboot)
 	else()
 		message(FATAL_ERROR "Multiboot requires an x86 processor")
 	endif()
+	set(ALIX_KERNEL_FORMAT_MULTIBOOT 1)
 	set(MULTIBOOT_SRCS multiboot/bootstrap.s)
 	set(MULTIBOOT_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/multiboot/link.ld")
 	
@@ -49,9 +52,13 @@ endif()
 
 if(ALIX_TARGET_PROCESSOR STREQUAL i386 OR ALIX_TARGET_PROCESSOR STREQUAL amd64)
 	target_sources(alix PRIVATE
+		src/x86/boot_info.h
 		src/x86/early_console.c
+		src/x86/init.c
 	)
 endif()
+
+configure_file(include/platform/info.h.in include/platform/info.h)
 
 install(TARGETS alix DESTINATION ${CMAKE_INSTALL_PREFIX})
 

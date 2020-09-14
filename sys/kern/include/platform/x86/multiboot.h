@@ -22,6 +22,20 @@ struct multiboot_elf_section_header_table {
 	uint32_t reserved;
 };
 
+#define MULTIBOOT_INFO_MEM_FLAG			(1 << 0)
+#define MULTIBOOT_INFO_BOOT_DEV_FLAG		(1 << 1)
+#define MULTIBOOT_INFO_CMDLINE_FLAG		(1 << 2)
+#define MULTIBOOT_INFO_MODULES_FLAG		(1 << 3)
+#define MULTIBOOT_INFO_A_OUT_SYMBOLS_FLAG	(1 << 4)
+#define MULTIBOOT_INFO_ELF_SECTION_HEADER_FLAG	(1 << 5)
+#define MULTIBOOT_INFO_MEMORY_MAP_FLAG		(1 << 6)
+#define MULTIBOOT_INFO_DRIVES_FLAG		(1 << 7)
+#define MULTIBOOT_INFO_CONFIG_TABLE_FLAG	(1 << 8)
+#define MULTIBOOT_INFO_BOOT_LOADER_NAME_FLAG	(1 << 9)
+#define MULTIBOOT_INFO_APM_TABLE_FLAG		(1 << 10)
+#define MULTIBOOT_INFO_VBE_TABLE_FLAG		(1 << 11)
+#define MULTIBOOT_INFO_FRAMEBUFFER_TABLE_FLAG	(1 << 12)
+
 struct multiboot_info {
 	uint32_t flags;
 	
@@ -79,10 +93,8 @@ struct multiboot_info {
 			uint8_t framebuffer_blue_field_position;
 			uint8_t framebuffer_blue_mask_size;
 		};
-	};
+	} color_info;
 };
-
-//extern bool 
 
 #endif
 

@@ -1,9 +1,9 @@
 /* Declare constants for the multiboot header. */
-.set ALIGN,    1<<0             /* align loaded modules on page boundaries */
-.set MEMINFO,  1<<1             /* provide memory map */
-.set FLAGS,    ALIGN | MEMINFO  /* this is the Multiboot 'flag' field */
-.set MAGIC,    0x1BADB002       /* 'magic number' lets bootloader find the header */
-.set CHECKSUM, -(MAGIC + FLAGS) /* checksum of above, to prove we are multiboot */
+.set ALIGN,	1<<0             /* align loaded modules on page boundaries */
+.set MEMINFO,	1<<1             /* provide memory map */
+.set FLAGS,	ALIGN | MEMINFO  /* this is the Multiboot 'flag' field */
+.set MAGIC,	0x1BADB002       /* 'magic number' lets bootloader find the header */
+.set CHECKSUM,	-(MAGIC + FLAGS) /* checksum of above, to prove we are multiboot */
  
 /* 
 Declare a multiboot header that marks the program as a kernel. These are magic
@@ -75,7 +75,18 @@ _start:
 	C++ features such as global constructors and exceptions will require
 	runtime support to work as well.
 	*/
- 
+
+	lgdt gdtr
+	jmp $0x08, $init32
+	/*movl %ebx, mb_info*/
+
+init32:
+	movw $0x10, %ax
+	movw %ax, %ds
+	movw %ax, %es
+	movw %ax, %fs
+	movw %ax, %gs
+
 	/*
 	Enter the high-level kernel. The ABI requires the stack is 16-byte
 	aligned at the time of the call instruction (which afterwards pushes
@@ -107,3 +118,17 @@ Set the size of the _start symbol to the current location '.' minus its start.
 This is useful when debugging or when you implement call tracing.
 */
 .size _start, . - _start
+
+.section .data
+.globl mb_info
+mb_info: .space 8	/* 64-bit address of multiboot info table */
+
+.section .rodata
+gdt:
+.quad 0
+.quad 0x00CF9A000000FFFF
+.quad 0x00CF92000000FFFF
+
+gdtr:
+.word . - gdt
+.long gdt
