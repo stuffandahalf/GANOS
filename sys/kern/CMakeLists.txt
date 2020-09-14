@@ -16,6 +16,7 @@ set(SRCS
 
 add_executable(alix ${SRCS})
 
+target_include_directories(alix PRIVATE include)
 target_compile_options(alix PUBLIC -ffreestanding)# -nostdinc)
 set(CMAKE_ASM-ATT_FLAGS "${CMAKE_ASM-ATT_FLAGS} --target=${ALIX_TARGET_TRIPLE}")
 target_link_options(alix PUBLIC -nostdlib)# -static)
@@ -44,6 +45,12 @@ elseif(ALIX_KERNEL_FORMAT STREQUAL multiboot)
 	set_target_properties(alix PROPERTIES LINK_DEPENDS "${MULTIBOOT_LINKER_SCRIPT}")
 else()
 	message(FATAL_ERROR "ALIX_KERNEL_FORMAT set to unknown value \"${ALIX_KERNEL_FORMAT}\"")
+endif()
+
+if(ALIX_TARGET_PROCESSOR STREQUAL i386 OR ALIX_TARGET_PROCESSOR STREQUAL amd64)
+	target_sources(alix PRIVATE
+		src/x86/early_console.c
+	)
 endif()
 
 install(TARGETS alix DESTINATION ${CMAKE_INSTALL_PREFIX})
