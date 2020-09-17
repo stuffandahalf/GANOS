@@ -29,7 +29,7 @@ const char *s_tgt[] = {
 int streq(const char *, const char *);
 
 int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
 	//char *s1 = "this is a test";
 	//char *s2 = "this is a test";

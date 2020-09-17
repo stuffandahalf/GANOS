@@ -18,7 +18,7 @@ struct line_buffer {
 	char *buffer;
 };
 
-int configure(int argc, char *argv[]);
+int configure(int argc, char **argv);
 void release_buffer(void);
 
 const char *prompt = NULL;
@@ -28,7 +28,7 @@ size_t file_buffer_size = 0;
 struct line_buffer *file_buffer = NULL;
 
 int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
 	int running = 1;
 
@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 
 /* Configures the utility */
 int
-configure(int argc, char *argv[])
+configure(int argc, char **argv)
 {
 	int c;
 	while ((c = getopt(argc, argv, "hsp:")) != -1) {

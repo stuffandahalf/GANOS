@@ -21,7 +21,7 @@
 #endif
 
 void
-_start(int argc, char *argv[])
+_start(int argc, char **argv)
 {
 	syscall(1, 123);
 }

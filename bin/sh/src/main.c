@@ -16,7 +16,7 @@ const char *PS4 = "+ ";
 int process(char *buf, size_t buf_sz);
 
 int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
 	int escape = 0;
 	size_t i = 0;

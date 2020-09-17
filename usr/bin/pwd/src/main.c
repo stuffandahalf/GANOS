@@ -7,7 +7,7 @@
 #define MODE_LIB	1
 
 int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
 #ifndef PATH_MAX
 	fprintf(stderr, "PATH_MAX not defined\n");

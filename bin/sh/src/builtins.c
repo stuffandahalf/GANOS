@@ -15,10 +15,10 @@
 #include "lookup.h"
 
 /* Builtin operations */
-static int builtin_cd(int, char *[]);
-static int builtin_exit(int, char *[]);
-static int builtin_set(int, char *[]);
-static int builtin_which(int, char *[]);
+static int builtin_cd(int, char **);
+static int builtin_exit(int, char **);
+static int builtin_set(int, char **);
+static int builtin_which(int, char **);
 
 /* This is a naive implementation. */
 /* Should reimplement as trie-type structure */
@@ -58,7 +58,7 @@ builtin_lookup(const char *util)
 }
 
 static int
-builtin_cd(int argc, char *argv[])
+builtin_cd(int argc, char **argv)
 {
 	int c;
 	
@@ -72,14 +72,14 @@ builtin_cd(int argc, char *argv[])
 }
 
 static int
-builtin_exit(int argc, char *argv[])
+builtin_exit(int argc, char **argv)
 {
 	write(0, "exit called\n", 12);
 	return 1;
 }
 
 static int
-builtin_set(int argc, char *argv[])
+builtin_set(int argc, char **argv)
 {
 	extern char **environ;
 	char **sp;
@@ -95,7 +95,7 @@ builtin_set(int argc, char *argv[])
 
 
 static int
-builtin_which(int argc, char *argv[])
+builtin_which(int argc, char **argv)
 {
 	union util_path util;
 	const char *short_name = argv[1];
@@ -115,3 +115,4 @@ builtin_which(int argc, char *argv[])
 	
 	return 0;
 }
+

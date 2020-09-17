@@ -3,7 +3,7 @@ project(ALiX/boot)
 
 if(${ALIX_TARGET_PROCESSOR} MATCHES "(i386|amd64)")
 	add_subdirectory(x86)
-else()
+elseif(EXISTS ${ALIX_TARGET_PROCESSOR})
 	add_subdirectory(${ALIX_TARGET_PROCESSOR})
 endif()
 

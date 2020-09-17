@@ -7,7 +7,7 @@
 void cat_file(FILE *fp);
 
 int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
 	int i, skip_nl = 0, rval = 0;
 	char c;
