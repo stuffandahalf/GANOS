@@ -4,16 +4,12 @@
 #include <platform/early_console.h>
 #include "boot_info.h"
 
-//uint16_t *fb_ptr = NULL;
-//uint16_t rows = 0;
-//uint16_t cols = 0;
+static uint8_t *fb_ptr = (uint8_t *)0xB8000;
+static uint16_t rows = 24;
+static uint16_t cols = 80;
 
-uint8_t *fb_ptr = (uint8_t *)0xB8000;
-uint16_t rows = 24;
-uint16_t cols = 80;
-
-uint16_t row = 0;
-uint16_t col = 0;
+static uint16_t row = 0;
+static uint16_t col = 0;
 
 static inline size_t
 fb_index(uint16_t x, uint16_t y)
@@ -21,14 +17,24 @@ fb_index(uint16_t x, uint16_t y)
 	return y * cols * 2 + x * 2;
 }
 
-void
-put_char(char c)
+static void
+print_char(char c)
 {
-	size_t i = fb_index(col, row);
+	size_t i;
 	uint16_t x, y;
-	fb_ptr[i] = c;
-	fb_ptr[i + 1] = 7;
-	col++;
+
+	switch (c) {
+	case '\n':
+		col = 0;
+		row++;
+		break;
+	default:
+		i = fb_index(col, row);
+		fb_ptr[i] = c;
+		fb_ptr[i + 1] = 7;
+		col++;
+	}
+
 	if (col > cols) {
 		row++;
 		col = 0;
@@ -43,21 +49,41 @@ put_char(char c)
 	}
 }
 
-void
-early_console_init(void)
+static void
+print_str(const char *s)
 {
-/*#ifdef ALIX_KERNEL_FORMAT_MULTIBOOT
-	if (mb_info->flags & MULTIBOOT_INFO_FRAMEBUFFER_TABLE_FLAG) {
-		fb_ptr = (uint16_t *)mb_info->framebuffer_addr;
-		rows = mb_info->framebuffer_height;
-		cols = mb_info->framebuffer_width;
+	const char *c;
+	uint16_t i, j;
+	for (c = s; *c != '\0'; c++) {
+		switch (*c) {
+		default:
+			print_char(*c);
+			break;
+		}
 	}
-#endif*/ /* ALIX_KERNEL_FORMAT_MULTIBOOT */
-	early_console_clear();
 }
 
-void
-early_console_clear(void)
+#define PRINT_DEC_NUM(T, suffix) \
+	void \
+	print_##suffix(T d) \
+	{ \
+		if (d < 0) { \
+			print_char('-'); \
+			print_##suffix(d * -1); \
+		} else if (d != 0) { \
+			print_##suffix(d / 10); \
+			print_char('0' + (d % 10)); \
+		} \
+	}
+
+static
+PRINT_DEC_NUM(int64_t, i64)
+
+static
+PRINT_DEC_NUM(uint64_t, u64)
+
+static void
+clear(void)
 {
 	int i;
 	for (i = 0; i < rows * cols * 2; i++) {
@@ -69,20 +95,16 @@ early_console_clear(void)
 }
 
 void
-early_console_print(const char *msg)
+console_init(struct console *c)
 {
-	const char *c;
-	uint16_t i, j;
-	for (c = msg; *c != '\0'; c++) {
-		switch (*c) {
-		default:
-			//*fb_ptr++ = *c;
-			//*fb_ptr++ = 7;
-			//col++;
-			put_char(*c);
-			break;
-		}
-		//*(fb_ptr++) = *(uint16_t *)&fbc;
-	}
+	c->rows = rows;
+	c->cols = cols;
+	c->print.c = print_char;
+	c->print.s = print_str;
+	c->print.i64 = print_i64;
+	c->print.u64 = print_u64;
+	//c->print.i64 = NULL;
+	//c->print.u64 = NULL;
+	c->clear = clear;
 }
 

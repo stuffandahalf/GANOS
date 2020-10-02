@@ -1,13 +1,16 @@
 #include <platform/init.h>
 #include <platform/early_console.h>
-
-#define VGA_COLOR_LIGHT_GREY	7
-#define VGA_COLOR_BLACK		0
+#include <alix/copyright.h>
+#include <alix/version.h>
 
 void kernel_main(void)
 {
+	struct console cons;
+
 	platform_init();
-	early_console_init();
-	early_console_print("ALiX 0.0.1 is booted!");
+	console_init(&cons);
+	cons.clear();
+	cons.print.s("Booting ALiX " ALIX_KERNEL_VERSION "\n");
+	cons.print.s(copyright_str);
 }
 

@@ -1,0 +1,7 @@
+#ifndef ALIX_KERNEL_VERSION_H
+#define ALIX_KERNEL_VERSION_H	1
+
+#define ALIX_KERNEL_VERSION	"0.0.1"
+
+#endif /* ALIX_KERNEL_VERSION_H */
+
