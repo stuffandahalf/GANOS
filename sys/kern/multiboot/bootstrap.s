@@ -81,6 +81,8 @@ _start:
 	/*movl %ebx, mb_info*/
 
 init32:
+	movl %ebx, mb_info
+
 	movw $0x10, %ax
 	movw %ax, %ds
 	movw %ax, %es
