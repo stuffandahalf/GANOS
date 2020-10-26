@@ -17,7 +17,7 @@ set(SRCS
 add_executable(alix ${SRCS})
 
 target_include_directories(alix PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/include)
-target_compile_options(alix PUBLIC -ffreestanding -fno-stack-protector)# -nostdinc)
+target_compile_options(alix PUBLIC -ffreestanding)# -fno-stack-protector)# -nostdinc)
 set(CMAKE_ASM-ATT_FLAGS "${CMAKE_ASM-ATT_FLAGS} --target=${ALIX_TARGET_TRIPLE}")
 target_link_options(alix PUBLIC -nostartfiles -nolibc)
 #target_link_options(alix PUBLIC -nostdlib)# -static)

@@ -1,3 +1,4 @@
+#include <locale.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -31,6 +32,7 @@ int streq(const char *, const char *);
 int
 main(int argc, char **argv)
 {
+	setlocale(LC_ALL, "");
 	//char *s1 = "this is a test";
 	//char *s2 = "this is a test";
 	//char *s3 = "this is not a test";

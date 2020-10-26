@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(ALiX/bin/sh C)
 
-include(SetCStdlib)
+include(SetCStdlib OPTIONAL RESULT_VARIABLE HAVE_ALIX_CMAKE_MODULES)
 
 set(SRC
 	src/builtins.c
@@ -13,7 +13,9 @@ set(HEADERS
 	src/lookup.h
 )
 add_executable(sh ${SRC} ${HEADERS})
-set_c_stdlib(sh)
+if(HAVE_ALIX_CMAKE_MODULES)
+	set_c_stdlib(sh)
+endif()
 
 install(TARGETS sh DESTINATION bin)
 

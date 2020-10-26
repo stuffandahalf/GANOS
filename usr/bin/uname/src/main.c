@@ -1,3 +1,4 @@
+#include <locale.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/utsname.h>
@@ -28,6 +29,8 @@ main(int argc, char **argv)
 		{ MFLAG,	&d.machine },
 		{ 0, NULL }
 	};
+
+	setlocale(LC_ALL, "");
 
 	while ((c = getopt(argc, argv, ":amnrsv")) != -1) {
 		switch (c) {

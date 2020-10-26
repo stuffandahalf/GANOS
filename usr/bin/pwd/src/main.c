@@ -1,3 +1,4 @@
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -15,6 +16,8 @@ main(int argc, char **argv)
 #else
 	int c;
 	int mode = MODE_ENV;
+
+	setlocale(LC_ALL, "");
 
 	while ((c = getopt(argc, argv, "LP")) != -1) {
 		switch (c) {
