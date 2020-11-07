@@ -3,17 +3,15 @@ project(ALiX/usr/bin/make C)
 
 include(SetCStdlib OPTIONAL RESULT_VARIABLE HAVE_ALIX_CMAKE_MODULES)
 
-set(SRC
+set(SRCS
 	src/main.c
 )
-set(HEADERS
 
-)
-
-add_executable(make ${SRC} ${HEADERS})
+add_executable(make ${SRCS})
 if(HAVE_ALIX_CMAKE_MODULES)
 	set_c_stdlib(make)
 endif()
+target_compile_definitions(make PRIVATE _POSIX_C_SOURCE=200112L)
 
 install(TARGETS make DESTINATION usr/bin)
 
