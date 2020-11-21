@@ -36,7 +36,7 @@ lookup_table[] = {
 	BUILTIN_UTIL(which),
 	{ 0 }
 };
-#unset BUILTIN_UTIL
+#undef BUILTIN_UTIL
 
 struct trie_node {
 	int i;

@@ -149,7 +149,7 @@ process(char *buf, size_t buf_sz)
 				printf("%s\n", *cpp);
 			}
 			char *test[] = { com, NULL };
-			if (execv(com, args) == -1)
+			if (execvp(com, args) == -1)
 			//if (execv(com, test) == -1)
 			{
 				perror(NULL);
