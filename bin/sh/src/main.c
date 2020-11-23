@@ -74,23 +74,25 @@ main(int argc, char **argv)
 int
 process(char *buf, size_t buf_sz)
 {
-	printf("reached process\n");
-	/*static char nl = '\n';
-
-	for (size_t i = 0; i < buf_sz; i++) {
-		write(0, &buf[i], 1);
-	}
-	write(0, &nl, 1);*/
-
 	int i, j, newarg = 0, ret = 1;
 	char *com = NULL;
 	char **args = NULL;
-	int args_sz = 3;
+	size_t args_sz = 3;
 	int argc = 0;
+	char **envs = NULL;
+	size_t envs_sz = 0;
+	int envc = 0;
+
+	fprintf(stderr, "reached process(char *, size_t)\n");
 
 	args = malloc(sizeof(char *) * args_sz);
 	for (j = 0; j < args_sz; j++) {
 		args[j] = NULL;
+	}
+
+	envs = malloc(sizeof(char *) * envs_sz);
+	for (j = 0; j < envs_sz; j++) {
+		envs[j] = NULL;
 	}
 
 	for (i = 0; i < buf_sz; i++) {
@@ -143,13 +145,13 @@ process(char *buf, size_t buf_sz)
 			break;
 		case 0:
 			//com = "/bin/sh";
-			printf("EXECUTING %s\n", com);
-			printf("PASSING ARGUMENTS\n");
+			fprintf(stderr, "EXECUTING %s\n", com);
+			fprintf(stderr, "PASSING ARGUMENTS\n");
 			for (char **cpp = args; *cpp != NULL; cpp++) {
-				printf("%s\n", *cpp);
+				fprintf(stderr, "%s\n", *cpp);
 			}
-			char *test[] = { com, NULL };
-			if (execvp(com, args) == -1)
+			//char *test[] = { com, NULL };
+			if (execvp(com, args) == -1 && execv(com, args) == -1)
 			//if (execv(com, test) == -1)
 			{
 				perror(NULL);
@@ -167,6 +169,7 @@ process(char *buf, size_t buf_sz)
 		}
 	}
 
+	free(envs);
 	free(args);
 
 	return ret;

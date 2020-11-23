@@ -6,7 +6,10 @@
 int
 lookup(const char *sn, union util_path *out)
 {
-	const char *path = getenv("PATH");
+	int done = 0;
+	char *c, *p;
+	char *path = getenv("PATH");
+
 	fprintf(stderr, "%s\n", path);
 
 	/* Check if is builtin util */
@@ -17,6 +20,18 @@ lookup(const char *sn, union util_path *out)
 	out->builtin = builtin_lookup(sn);
 	if (out->builtin != NULL) {
 		return UTIL_LOOKUP_BUILTIN;
+	} else {
+		p = path;
+		while (*p) {
+			for (c = p; *c != '\0' && *c != ':'; c++);
+			if (*c == ':') {
+				*c = '\0';
+				c++;
+			}
+			/* lookup */
+			printf("current path = %s\n", p);
+			p = c;
+		}
 	}
 
 	return UTIL_LOOKUP_NOTFOUND;

@@ -2,7 +2,9 @@
 #define _POSIX_C_SOURCE 2
 #endif
 
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef _WIN32
 #include <direct.h>
@@ -60,14 +62,45 @@ builtin_lookup(const char *util)
 static int
 builtin_cd(int argc, char **argv)
 {
-	int c;
-	
-	write(0, "cd called\n", 10);
-	
+	int c, ret, logical = 1;
+	char *curpath, *path, *home;
+
 	optind = 1;
 	while ((c = getopt(argc, argv, "LP")) != -1) {
-		write(0, &c, 1);
+		switch (c) {
+		case 'L':
+			logical = 1;
+			break;
+		case 'P':
+			logical = 0;
+			break;
+		case '?':
+		deafult:
+			return 1;
+		}
 	}
+	
+	if (optind < argc) {
+		path = argv[optind];
+	} else {
+		path = NULL;
+	}
+
+	if (path == NULL) {
+		if ((path = getenv("HOME")) == NULL) {
+			// fetch user directory
+			// not specified in POSIX 2001
+		} else {
+			ret = chdir(path);
+		}
+	} else {
+		ret = chdir(path);
+	}
+	
+	if (ret == -1) {
+		fprintf(stderr, "%s: %s\n", argv[0], strerror(errno));
+	}
+
 	return 0;
 }
 
