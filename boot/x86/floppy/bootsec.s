@@ -43,18 +43,11 @@ _start:
 	sti
 
 begin:
-	movw $str, %si
-	call print
 
-
-	/* load FAT */
-	/* setup retry counter */
-	pushw $0x0006
+load_fat: /* load FAT */
 1:
-	popw %cx
-	decw %cx
+	decb reset_counter
 	jz halt
-	pushw %cx
 
 	/* reset disk system */
 	movw $reset_str, %si
@@ -66,9 +59,9 @@ begin:
 	/* load FAT to address 0x0500 */
 	movw $load_fat_str, %si
 	call print
+	movw bpb+22, %ax /* Sectors per fat */
 	movb $0x02, %ah
-	movb bpb+22, %al
-	movw $0x0001, %cx
+	movw bpb+14, %cx /* reserved sectors */
 	xorb %dh, %dh
 	pushw %es
 	movw $0x0050, %bx
@@ -78,37 +71,126 @@ begin:
 	jnc 2f
 	popw %es
 	jmp 1b
-
 2:
 	popw %es
-
-	/* locate bootloader file */
-	/* calculate offset of root directory */
-	movw $locate_str, %si
+	movw $success_str, %si
 	call print
-	movw bpb+16, %cx
-	xorw %bx, %bx
-	incw %bx
-1:
-	addw bpb+22, %bx
-	decw %cx
-	jnz 1b
 
-	/* calculate size of root directory in # of sectors*/
-	movb $32, %cl
-	xorw %ax, %ax
-2:
-	addw bpb+17, %ax
-	decb %cl
-	jnz 2b
-
-3:
-	incw %cx
-	subw bpb+11, %ax
-	jnz 3b
-
-	/* load root directory */
+load_root: /* load root directory */
+	/* Calculate next CHS */
+	pushw %ax
+	movb %ch, %bl
+	movb %cl, %bh
+	shrb $6, %bh
+	/* %bx contains cylinder */
+	andb $0x3F, %cl
+	/* %cl contains sector */
+	/* %dh still contains head */
 	
+	shlb $1, %al /* REMOVE THIS LATER */
+1:	/* next sector */
+	test %al, %al
+	jz 2f
+	decb %al
+	incb %cl /* increment sector */
+	cmpb bpb+24, %cl /* sectors per track */
+	jle 1b
+	movb $0x01, %cl /* reset sector */
+	incb %dh /* increment head */
+	cmpb bpb+26, %dh
+	jl 1b
+	xorb %dh, %dh /* reset head */
+	incw %bx /* increment cylinder */
+	jmp 1b
+	
+	
+2:	/* reconstruct CHS for int 13h */
+	movb %bl, %ch
+	shlb $6, %bh
+	orb %bh, %cl
+
+	/* calculate destination address */
+	popw %ax
+	;pushw %bx
+	xorw %bx, %bx
+3:
+	addw bpb+11, %bx /* bytes per sector */
+	decb %al
+	jnz 3b
+	/* %bx contains destination address */
+	pushw %bx
+	
+	/* calculate number of sectors */
+	movw bpb+17, %ax /* number of root directory entries */
+	shl $5, %ax /* multiply by 32 */
+	movw bpb+11, %bx
+4:	/* divide by number of sectors */
+	shr $1, %bx /* divide by 2 */
+	jz 5f
+	shr $1, %ax
+	jmp 4b
+5:	/* %al contains number of sectors to load */
+	
+	/* load root directory */
+	movw $load_root_str, %si
+	call print
+	movb $0x06, reset_counter
+	movw $0x0050, %bx
+	movw %bx, %es
+	popw %bx
+	
+1:
+	decb reset_counter
+	jz halt
+	
+	xorb %ah, %ah
+	int $0x13
+	jc 1b
+	
+	movb $0x02, %ah
+	int $0x13
+	jc halt
+	
+	movw $success_str, %si
+	call print
+	
+find_stage2: /* find boot file in root directory */
+	pushw %bx
+	movw %es, %cx
+	shr $8, %bx
+	addw %bx, %cx
+	movw %cx, %es
+	popw %bx
+	xorb %bh, %bh
+	movw %bx, %di
+	/* set %es:%di to point to directory entries */
+	movw bpb+17, %cx /* number of root directory entries */
+	
+	pushw %es
+	xorw %si, %si
+	movw %si, %es
+	movw locate_file_str, %si
+	call print
+	popw %es
+1:
+	pushw %cx
+	movw 11, %cx
+	mov target_file, %si
+	repne cmpsb
+	jcxz 2f
+	popw %cx
+	decw %cx
+	addw $32, %bx
+	jmp 1b
+	
+2: /* file found */
+	popw %cx
+	pushw %es
+	xorw %si, %si
+	movw %si, %es
+	movw $success_str, %si
+	call print
+	popw %es
 
 halt:
 	movw $halt_str, %si
@@ -130,9 +212,13 @@ print:
 	ret
 
 target_file:
-	.ascii "BOOTLD  SYS"
-fname_len:
-	.equ .-target_file
+	;.ascii "BOOTLD  SYS"
+	.ascii "BOOTLD  COM"
+/*fname_len:
+	.equ .-target_file*/
+
+reset_counter:
+	.byte 6
 
 str:
 	.asciz "Hello World!\r\n"
@@ -140,10 +226,14 @@ reset_str:
 	.asciz "reset\r\n"
 load_fat_str:
 	.asciz "loading FAT\r\n"
-locate_str:
-	.asciz "locate\r\n"
+load_root_str:
+	.asciz "loading root\r\n"
+locate_file_str:
+	.asciz "searching for file\r\n"
 load_file_str:
 	.asciz "loading file\r\n"
+success_str:
+	.asciz "success\r\n"
 halt_str:
 	.asciz "HALTED"
 

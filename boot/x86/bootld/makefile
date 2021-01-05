@@ -1,6 +1,6 @@
 .POSIX:
 
-TARGET=bootld.lde
+TARGET=bootld.sys
 OBJS=bootld.o
 
 all=$(TARGET)
