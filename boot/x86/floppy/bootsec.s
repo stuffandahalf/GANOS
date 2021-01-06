@@ -37,12 +37,12 @@ _start:
 	movw $top, %sp
 
 	pushw %ax
-	pushw $1f
+	pushw $begin
 	lret
-1:	/* normalized segments and IP */
-	sti
 
-begin:
+begin: /* normalized segments and IP */
+	sti
+	movb %dl, drive
 
 load_fat: /* load FAT */
 1:
@@ -211,17 +211,66 @@ print:
 	popw %ax
 	ret
 
+/* takes 5 parameters on stack */
+/* return address */
+/* %dx, %dl = drive, %dh = head */
+/* %cx, %cl(lower 6 bits) = sector, %cl(upper 2 bits):%ch = cylinder */
+/* %bx = target address offset */
+/* %es = target segment */
+/* %ax, %al = number of sectors to read, %ah = dont care */
+load:
+	pushw %bp
+	movw %sp, %bp
+	pushw %ax
+	pushw %es
+	pushw %bx
+	pushw %cx
+	pushw %dx
+	
+	movw 4(%bp), %dx
+	movw 6(%bp), %cx
+	movw 8(%bp), %bx
+	movw 10(%bp), %es
+	
+	;movb $reset_max, reset_counter
+	movb $0x06, reset_counter
+
+1: /* retry */
+	decb reset_counter
+	jz halt
+	
+2: /* reset */
+	movb $0x00, %ah
+	int $0x13
+	jc 1b
+	
+3: /* load */
+	movb $0x02, %ah
+	movb 10(%bp), %al
+	int $0x13
+	jc 1b
+	
+	popw %dx
+	popw %cx
+	popw %bx
+	popw %es
+	popw %ax
+	popw %bp
+	ret
+
 target_file:
-	;.ascii "BOOTLD  SYS"
-	.ascii "BOOTLD  COM"
+	.ascii "BOOTLD  SYS"
 /*fname_len:
 	.equ .-target_file*/
 
+drive:
+	.byte 0
+;reset_max: .equ 6
 reset_counter:
-	.byte 6
+	.byte 0
 
-str:
-	.asciz "Hello World!\r\n"
+;str:
+;	.asciz "Hello World!\r\n"
 reset_str:
 	.asciz "reset\r\n"
 load_fat_str:
@@ -242,6 +291,3 @@ halt_str:
 boot_sig:
 	.byte 0x55
 	.byte 0xaa
-
-fat:
-
