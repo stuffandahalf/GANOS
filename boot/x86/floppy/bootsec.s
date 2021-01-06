@@ -45,34 +45,19 @@ begin: /* normalized segments and IP */
 	movb %dl, drive
 
 load_fat: /* load FAT */
-1:
-	decb reset_counter
-	jz halt
-
-	/* reset disk system */
-	movw $reset_str, %si
-	call print
-	xorb %ah, %ah
-	int $0x13
-	jc halt
-
 	/* load FAT to address 0x0500 */
 	movw $load_fat_str, %si
 	call print
-	movw bpb+22, %ax /* Sectors per fat */
-	movb $0x02, %ah
-	movw bpb+14, %cx /* reserved sectors */
-	xorb %dh, %dh
-	pushw %es
+	movw bpb+22, %ax /* sectors per FAT */
 	movw $0x0050, %bx
-	movw %bx, %es
-	xorw %bx, %bx
-	int $0x13
-	jnc 2f
-	popw %es
-	jmp 1b
-2:
-	popw %es
+	movw %bx, %es /* target segment */
+	xorw %bx, %bx /* target offset */
+	movw bpb+14, %cx /* reserved segments */
+	xorb %dh, %dh
+	
+	call load
+	jc halt
+	
 	movw $success_str, %si
 	call print
 
@@ -134,21 +119,8 @@ load_root: /* load root directory */
 	/* load root directory */
 	movw $load_root_str, %si
 	call print
-	movb $0x06, reset_counter
-	movw $0x0050, %bx
-	movw %bx, %es
-	popw %bx
 	
-1:
-	decb reset_counter
-	jz halt
-	
-	xorb %ah, %ah
-	int $0x13
-	jc 1b
-	
-	movb $0x02, %ah
-	int $0x13
+	call load
 	jc halt
 	
 	movw $success_str, %si
@@ -200,6 +172,9 @@ halt:
 
 print:
 	pushw %ax
+	pushw %es
+	xorw %ax, %ax
+	movw %ax, %es
 	movb $0x0e, %ah
 1:	# loop
 	lodsb
@@ -208,39 +183,36 @@ print:
 	int $0x10
 	jmp 1b
 2:	# end
+	popw %es
 	popw %ax
 	ret
 
-/* takes 5 parameters on stack */
-/* return address */
+/* takes 5 parameters, as per int 13h, ah=2 */
 /* %dx, %dl = drive, %dh = head */
 /* %cx, %cl(lower 6 bits) = sector, %cl(upper 2 bits):%ch = cylinder */
 /* %bx = target address offset */
 /* %es = target segment */
 /* %ax, %al = number of sectors to read, %ah = dont care */
+/* Handles resetting drive before loading */
 load:
-	pushw %bp
-	movw %sp, %bp
 	pushw %ax
-	pushw %es
-	pushw %bx
-	pushw %cx
-	pushw %dx
 	
-	movw 4(%bp), %dx
-	movw 6(%bp), %cx
-	movw 8(%bp), %bx
-	movw 10(%bp), %es
-	
-	;movb $reset_max, reset_counter
 	movb $0x06, reset_counter
 
 1: /* retry */
 	decb reset_counter
-	jz halt
+	jnz 2f
+	stc
+	jmp 4f
 	
 2: /* reset */
-	movb $0x00, %ah
+	pushw %si
+	movw $reset_str, %si
+	call print
+	popw %si
+	//movb $0x00, %ah
+	xorb %ah, %ah
+	jmp halt
 	int $0x13
 	jc 1b
 	
@@ -250,12 +222,8 @@ load:
 	int $0x13
 	jc 1b
 	
-	popw %dx
-	popw %cx
-	popw %bx
-	popw %es
+4: /* function exit */
 	popw %ax
-	popw %bp
 	ret
 
 target_file:
@@ -265,12 +233,11 @@ target_file:
 
 drive:
 	.byte 0
-;reset_max: .equ 6
 reset_counter:
 	.byte 0
 
-;str:
-;	.asciz "Hello World!\r\n"
+#str:
+#	.asciz "Hello World!\r\n"
 reset_str:
 	.asciz "reset\r\n"
 load_fat_str:
