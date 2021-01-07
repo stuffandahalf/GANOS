@@ -125,44 +125,6 @@ load_root: /* load root directory */
 	
 	movw $success_str, %si
 	call print
-	
-find_stage2: /* find boot file in root directory */
-	pushw %bx
-	movw %es, %cx
-	shr $8, %bx
-	addw %bx, %cx
-	movw %cx, %es
-	popw %bx
-	xorb %bh, %bh
-	movw %bx, %di
-	/* set %es:%di to point to directory entries */
-	movw bpb+17, %cx /* number of root directory entries */
-	
-	pushw %es
-	xorw %si, %si
-	movw %si, %es
-	movw locate_file_str, %si
-	call print
-	popw %es
-1:
-	pushw %cx
-	movw 11, %cx
-	mov target_file, %si
-	repne cmpsb
-	jcxz 2f
-	popw %cx
-	decw %cx
-	addw $32, %bx
-	jmp 1b
-	
-2: /* file found */
-	popw %cx
-	pushw %es
-	xorw %si, %si
-	movw %si, %es
-	movw $success_str, %si
-	call print
-	popw %es
 
 halt:
 	movw $halt_str, %si
@@ -170,19 +132,21 @@ halt:
 	cli
 	hlt
 
+/* parameters */
+/* %si = offset address of string to be printed from segment of 0 */
 print:
 	pushw %ax
 	pushw %es
 	xorw %ax, %ax
 	movw %ax, %es
 	movb $0x0e, %ah
-1:	# loop
+1: /* loop */
 	lodsb
 	testb %al, %al	# if %al == 0)
 	je 2f
 	int $0x10
 	jmp 1b
-2:	# end
+2: /* function exit */
 	popw %es
 	popw %ax
 	ret
@@ -210,15 +174,12 @@ load:
 	movw $reset_str, %si
 	call print
 	popw %si
-	//movb $0x00, %ah
 	xorb %ah, %ah
-	jmp halt
 	int $0x13
 	jc 1b
 	
 3: /* load */
 	movb $0x02, %ah
-	movb 10(%bp), %al
 	int $0x13
 	jc 1b
 	
@@ -236,8 +197,6 @@ drive:
 reset_counter:
 	.byte 0
 
-#str:
-#	.asciz "Hello World!\r\n"
 reset_str:
 	.asciz "reset\r\n"
 load_fat_str:
