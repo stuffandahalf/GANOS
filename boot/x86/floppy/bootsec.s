@@ -62,69 +62,91 @@ load_fat: /* load FAT */
 	call print
 
 load_root: /* load root directory */
-	/* Calculate next CHS */
-	pushw %ax
+	pushw %cx
+	movb bpb+16, %cl /* number of FAT tables */
+	xorw %ax, %ax
+1:	/* loop adding sizeof(FAT) to total in %ax */
+	addw bpb+22, %ax /* sizeof(FAT) */
+	decb %cl
+	jnz 1b
+	popw %cx
+	/* %ax contains number of sectors reserved for FAT */
+
+2:	/* seperate CHS address */
 	movb %ch, %bl
 	movb %cl, %bh
-	shrb $6, %bh
-	/* %bx contains cylinder */
-	andb $0x3F, %cl
-	/* %cl contains sector */
-	/* %dh still contains head */
+	shr $6, %bh
+	andb $0x4f, %cl
 	
-	shlb $1, %al /* REMOVE THIS LATER */
-1:	/* next sector */
-	test %al, %al
-	jz 2f
-	decb %al
-	incb %cl /* increment sector */
+	/* %bx = cylinder */
+	/* %dh = head */
+	/* %cl = sector */
+
+3:	/* calculate next CHS address */
+	testw %ax, %ax
+	jz 4f
+	decw %ax
+	
+	incb %cl /* increment sector of track */
 	cmpb bpb+24, %cl /* sectors per track */
-	jle 1b
-	movb $0x01, %cl /* reset sector */
+	jbe 3b
+	
+	movb $1, %cl /* reset sector */
 	incb %dh /* increment head */
-	cmpb bpb+26, %dh
-	jl 1b
+	cmpb bpb+26, %dh /* number of heads */
+	jb 3b
+	
 	xorb %dh, %dh /* reset head */
 	incw %bx /* increment cylinder */
-	jmp 1b
+	jmp 3b
 	
-	
-2:	/* reconstruct CHS for int 13h */
+4:	/* reconstruct CHS address */
+	andb $0x4f, %cl
+	shl $6, %bh
+	andb %bh, %cl
 	movb %bl, %ch
-	shlb $6, %bh
-	orb %bh, %cl
 
-	/* calculate destination address */
-	popw %ax
-	;pushw %bx
+	/* calculate next destination address */
 	xorw %bx, %bx
-3:
+	movw bpb+22, %ax
+5:	/* loop */
 	addw bpb+11, %bx /* bytes per sector */
-	decb %al
-	jnz 3b
-	/* %bx contains destination address */
-	pushw %bx
+	decw %ax
+	jnz 5b
 	
-	/* calculate number of sectors */
-	movw bpb+17, %ax /* number of root directory entries */
-	shl $5, %ax /* multiply by 32 */
-	movw bpb+11, %bx
-4:	/* divide by number of sectors */
-	shr $1, %bx /* divide by 2 */
-	jz 5f
-	shr $1, %ax
-	jmp 4b
-5:	/* %al contains number of sectors to load */
+	/* %bx = target offset */
 	
-	/* load root directory */
+	/* sectors for root directory = number of root entries * 32 / bytes per sector */
+	pushw %dx
+	xorw %dx, %dx
+	movw bpb+17, %ax /* number of root entries */
+	shl $5, %ax
+	divw bpb+11 /* bytes per sector */
+	popw %dx
+	
+	jmp halt
+	
+6:	/* load root */
 	movw $load_root_str, %si
 	call print
 	
 	call load
 	jc halt
+
+find_file:
+	pushw %ds
+	pushw %es
+	popw %ds
+	movw %bx, %si
+	movb $0x0e, %ah
+	movb $8, %cl
+1:	/* loop */
+	lodsb
 	
-	movw $success_str, %si
-	call print
+	int $0x10
+	decb %cl
+	jnz 1b
+	
 
 halt:
 	movw $halt_str, %si
@@ -136,9 +158,9 @@ halt:
 /* %si = offset address of string to be printed from segment of 0 */
 print:
 	pushw %ax
-	pushw %es
-	xorw %ax, %ax
-	movw %ax, %es
+	#pushw %es
+	#xorw %ax, %ax
+	#movw %ax, %es
 	movb $0x0e, %ah
 1: /* loop */
 	lodsb
@@ -147,7 +169,7 @@ print:
 	int $0x10
 	jmp 1b
 2: /* function exit */
-	popw %es
+	#popw %es
 	popw %ax
 	ret
 
