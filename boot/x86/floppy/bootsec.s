@@ -15,7 +15,7 @@ bpb:
 	.word 2880				/* total number of sectors */
 	.byte 0xf0				/* media descriptor */
 	.word 9					/* sectors per FAT */
-	.word 9					/* sectors per track */
+	.word 18				/* sectors per track */
 	.word 2					/* number of heads */
 	.word 0					/* hidden sectors */
 ebpb:
@@ -43,6 +43,14 @@ _start:
 begin: /* normalized segments and IP */
 	sti
 	movb %dl, drive
+	
+	/* REMOVE THIS */
+	/*movb $0x08, %ah
+	xorw %di, %di
+	movw %di, %es
+	int $0x13
+	jmp halt*/
+	/* END REMOVE */
 
 load_fat: /* load FAT */
 	/* load FAT to address 0x0500 */
@@ -52,7 +60,8 @@ load_fat: /* load FAT */
 	movw $0x0050, %bx
 	movw %bx, %es /* target segment */
 	xorw %bx, %bx /* target offset */
-	movw bpb+14, %cx /* reserved segments */
+	movw bpb+14, %cx /* reserved sectors */
+	incw %cx
 	xorb %dh, %dh
 	
 	call load
@@ -101,10 +110,10 @@ load_root: /* load root directory */
 	jmp 3b
 	
 4:	/* reconstruct CHS address */
-	andb $0x4f, %cl
-	shl $6, %bh
-	andb %bh, %cl
+	andb $0x3f, %cl
 	movb %bl, %ch
+	shl $6, %bh
+	orb %bh, %cl
 
 	/* calculate next destination address */
 	xorw %bx, %bx
@@ -120,11 +129,9 @@ load_root: /* load root directory */
 	pushw %dx
 	xorw %dx, %dx
 	movw bpb+17, %ax /* number of root entries */
-	shl $5, %ax
+	shl $5, %ax /* %ax *= 32 */
 	divw bpb+11 /* bytes per sector */
 	popw %dx
-	
-	jmp halt
 	
 6:	/* load root */
 	movw $load_root_str, %si
@@ -220,7 +227,7 @@ reset_counter:
 	.byte 0
 
 reset_str:
-	.asciz "reset\r\n"
+	.asciz "reset disk\r\n"
 load_fat_str:
 	.asciz "loading FAT\r\n"
 load_root_str:
