@@ -43,14 +43,6 @@ _start:
 begin: /* normalized segments and IP */
 	sti
 	movb %dl, drive
-	
-	/* REMOVE THIS */
-	/*movb $0x08, %ah
-	xorw %di, %di
-	movw %di, %es
-	int $0x13
-	jmp halt*/
-	/* END REMOVE */
 
 load_fat: /* load FAT */
 	/* load FAT to address 0x0500 */
@@ -117,7 +109,7 @@ load_root: /* load root directory */
 
 	/* calculate next destination address */
 	xorw %bx, %bx
-	movw bpb+22, %ax
+	movw bpb+22, %ax /* sectors per FAT */
 5:	/* loop */
 	addw bpb+11, %bx /* bytes per sector */
 	decw %ax
@@ -139,21 +131,56 @@ load_root: /* load root directory */
 	
 	call load
 	jc halt
+	
+	movw $success_str, %si
+	call print
 
 find_file:
+	movw $locate_file_str, %si
+	call print
+
+	movw bpb+17, %cx /* number of root entries */
+	
+1:
+	pushw %cx
+	movw $11, %cx
+	movw %bx, %di
+	movw $target_file, %si
+	
+	repe cmpsb
+	je 2f
+	
+	popw %cx
+	decw %cx
+	jz halt
+	addw $32, %bx
+	jmp 1b
+	
+2:
+	popw %cx
+	mov $success_str, %si
+	call print
+
+load_file:
 	pushw %ds
 	pushw %es
 	popw %ds
 	movw %bx, %si
+	movb $11, %cl
 	movb $0x0e, %ah
-	movb $8, %cl
+	
 1:	/* loop */
 	lodsb
-	
 	int $0x10
-	decb %cl
-	jnz 1b
-	
+	dec %cl
+	jz 2f
+	jmp 1b
+2:
+	movb $'\r', %al
+	int $0x10
+	movb $'\n', %al
+	int $0x10
+	popw %ds
 
 halt:
 	movw $halt_str, %si
@@ -164,10 +191,12 @@ halt:
 /* parameters */
 /* %si = offset address of string to be printed from segment of 0 */
 print:
+	pushw %ds
 	pushw %ax
-	#pushw %es
-	#xorw %ax, %ax
-	#movw %ax, %es
+	
+	xorw %ax, %ax
+	movw %ax, %ds
+	
 	movb $0x0e, %ah
 1: /* loop */
 	lodsb
@@ -176,8 +205,8 @@ print:
 	int $0x10
 	jmp 1b
 2: /* function exit */
-	#popw %es
 	popw %ax
+	popw %ds
 	ret
 
 /* takes 5 parameters, as per int 13h, ah=2 */
@@ -218,8 +247,6 @@ load:
 
 target_file:
 	.ascii "BOOTLD  SYS"
-/*fname_len:
-	.equ .-target_file*/
 
 drive:
 	.byte 0
@@ -227,7 +254,7 @@ reset_counter:
 	.byte 0
 
 reset_str:
-	.asciz "reset disk\r\n"
+	.asciz "->reset disk\r\n"
 load_fat_str:
 	.asciz "loading FAT\r\n"
 load_root_str:
