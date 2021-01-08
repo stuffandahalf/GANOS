@@ -3,7 +3,7 @@
 TARGET=bootld.sys
 OBJS=bootld.o
 
-all=$(TARGET)
+all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(LD) $(LDFLAGS) -Ttext 0x07e00 --oformat binary -o $(TARGET) $(OBJS)
