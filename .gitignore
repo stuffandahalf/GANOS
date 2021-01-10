@@ -61,6 +61,7 @@ dkms.conf
 *.bin
 *.lst
 *.swp
+*.sys
 
 # Editor and environment files
 *.DS_Store

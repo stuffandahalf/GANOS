@@ -12,6 +12,8 @@ halt:
 	cli
 	hlt
 
+	.org top+1024
+
 welcome_str:
 	.asciz "BOOTLD.COM EXECUTED"
 
@@ -30,4 +32,3 @@ print:
 2:	/* end */
 	popw %ax
 	ret
-

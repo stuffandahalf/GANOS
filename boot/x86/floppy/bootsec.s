@@ -59,9 +59,6 @@ load_fat: /* load FAT */
 	call load
 	jc halt
 	
-	#movw $success_str, %si
-	#call print
-	
 	/* store end of chain marker */
 	movw %es:1(%bx), %ax
 	shrw $4, %ax
@@ -105,11 +102,9 @@ load_root: /* load root directory */
 	call load
 	jc halt
 	
-	#movw $success_str, %si
-	#call print
-	
 	xorb %ah, %ah
 	call add_chs
+	
 	movw %sp, %bp
 	pushw %dx
 	pushw %cx
@@ -127,18 +122,15 @@ find_file:
 	movw $target_file, %si
 	
 	repe cmpsb
+	popw %cx
 	je 2f
 	
-	popw %cx
 	decw %cx
 	jz halt
 	addw $32, %bx
 	jmp 1b
 	
 2:
-	popw %cx
-	#mov $success_str, %si
-	#call print
 
 load_file:
 	mov $load_file_str, %si
@@ -153,6 +145,8 @@ load_file:
 	
 1:	/* load cluster */
 	pushw %ax /* preserve cluster number */
+	decw %ax
+	decw %ax
 	xorw %cx, %cx
 	movb bpb+13, %cl /* sectors per cluster */
 	mulw %cx
@@ -179,6 +173,7 @@ load_file:
 	pushw %bx /* preserve target address */
 	movw %ax, %cx
 	
+	/* calculate offset of next cluster number in FAT */
 	movw %ax, %bx
 	shrw $1, %ax
 	addw %ax, %bx
@@ -186,24 +181,25 @@ load_file:
 	movw (%bx, %si, 1), %ax
 	testb $0x01, %cl
 	jz 3f
-	/* not equal */
+	/* not even */
 	shrw $4, %ax
 	jmp 4f
-3:	/* equal */
+3:	/* even */
 	andw $0x0FFF, %ax
 4:
 	popw %bx
-	jmp halt
 	cmpw eoc, %ax
 	jne 1b
 	
-	#xorw %ax, %ax
+	addw $4, %sp
 	
-	#pushw %es
-	#pushw %ax
-	#lret
-	#jmp 0x7e00
+	pushw %es
+	xorw %bx, %bx
+	movw %bx, %es
+	popw %bx
 	
+	shlw $4, %bx
+	jmp *%bx
 
 halt:
 	movw $halt_str, %si
@@ -232,7 +228,7 @@ print:
 	popw %ds
 	ret
 
-/* takes 5 parameters, as per int 13h, ah=2 */
+/* parameters */
 /* %dx, %dl = drive, %dh = head */
 /* %cx, %cl(lower 6 bits) = sector, %cl(upper 2 bits):%ch = cylinder */
 /* %bx = target address offset */
@@ -271,11 +267,12 @@ load:
 /* CHS parameters as per int 13h */
 /* %ax contains number of sectors to add */
 add_chs:
+	pushw %bx
 1:	/* seperate CHS address */
 	movb %ch, %bl
 	movb %cl, %bh
 	shr $6, %bh
-	andb $0x4f, %cl
+	andb $0x3f, %cl
 	
 	/* %bx = cylinder */
 	/* %dh = head */
@@ -304,6 +301,8 @@ add_chs:
 	movb %bl, %ch
 	shl $6, %bh
 	orb %bh, %cl
+	
+	popw %bx
 	ret
 	
 
@@ -316,7 +315,7 @@ eoc: /* end of chain indicator */
 	.word 0
 
 reset_str:
-	.asciz "->reset disk\r\n"
+	.asciz "->reset disk\r"
 load_fat_str:
 	.asciz "loading FAT\r\n"
 load_root_str:
@@ -325,12 +324,10 @@ locate_file_str:
 	.asciz "searching for file\r\n"
 load_file_str:
 	.asciz "loading file\r\n"
-#success_str:
-#	.asciz "success\r\n"
 halt_str:
 	.asciz "HALTED"
 
-	#.org top+510
+	.org top+510
 
 boot_sig:
 	.byte 0x55
