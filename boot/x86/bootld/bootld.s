@@ -13,7 +13,9 @@ top:
 	movw $LOADER_SZ, %cx
 	rep movsb
 	
-	jmp _start
+	pushw $_start
+	ret
+	#jmp _start
 
 _start:
 	movw $welcome_str, %si
