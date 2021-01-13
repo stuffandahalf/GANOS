@@ -3,11 +3,14 @@
 top:
 
 _start:
-	mov $welcome_str, %si
+	movw $welcome_str, %si
 	call print
 
+a20_enable:
+
+
 halt:
-	mov $halt_str, %si
+	movw $halt_str, %si
 	call print
 	cli
 	hlt
@@ -15,7 +18,7 @@ halt:
 	.org top+1024
 
 welcome_str:
-	.asciz "BOOTLD.COM EXECUTED"
+	.asciz "BOOTLD.SYS EXECUTED"
 
 halt_str:
 	.asciz "HALTED"
@@ -32,3 +35,4 @@ print:
 2:	/* end */
 	popw %ax
 	ret
+
