@@ -21,10 +21,6 @@ _start:
 	movw $welcome_str, %si
 	call println
 	
-	call println_d
-	call println_x
-	jmp halt
-	
 	call check_a20
 	jnc 1f
 	movw $enabled_str, %si
@@ -44,6 +40,7 @@ halt:
 	call println
 	popw %si
 	popw %ds
+	call reg32_dump
 	cli
 	hlt
 
@@ -101,9 +98,121 @@ check_a20:
 	popw %ds
 	ret
 
-reg_dump:
+reg32_dump:
+	pushw %bp
+	movw %sp, %bp
 	
+	pushw %di
+	pushw %si
+	pushl %eax
 	
+	movw $tab_str, %di
+
+	movw $eax_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	movl %ecx, %eax
+	movw $ecx_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	movl %edx, %eax
+	movw $edx_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	movl %ebx, %eax
+	movw $ebx_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	movl %esp, %eax
+	movw $esp_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	pushw %bp
+	movw (%bp), %bp
+	movl %ebp, %eax
+	popw %bp
+	movw $ebp_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	movw -4(%bp), %si
+	movl %esi, %eax
+	movw $esi_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	pushw %di
+	movw -2(%bp), %di
+	movl %edi, %eax
+	popw %di
+	movw $edi_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	#call 1f
+1:
+	xorl %eax, %eax
+	#popw %ax
+	movw 2(%bp), %ax
+	movw $eip_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_d
+	movw %di, %si
+	call print
+	call println_x
+	
+	popl %eax
+	popw %si
+	popw %di
+	
+	popw %bp
 	ret
 
 # parameters
@@ -142,7 +251,6 @@ println:
 # %eax = number
 # no return
 print_x:
-	pushw %si
 	pushl %eax
 	pushl %ebx
 	pushw %cx
@@ -158,6 +266,7 @@ print_x:
 	testl %eax, %eax
 	jnz 1f
 	movb $0x0e, %ah
+	addb $'0', %al
 	int $0x10
 	jmp 6f
 	
@@ -195,13 +304,12 @@ print_x:
 	popw %cx
 	popl %ebx
 	popl %eax
-	popw %si
 	ret
 
 println_x:
 	call print_x
 	pushw %si
-	mov $newline_str, %si
+	movw $newline_str, %si
 	call print
 	popw %si
 	ret
@@ -210,7 +318,6 @@ println_x:
 # %eax = number
 # no return
 print_d:
-	pushw %si
 	pushl %eax
 	pushl %ebx
 	pushw %cx
@@ -252,9 +359,11 @@ print_d:
 	popw %cx
 	popl %ebx
 	popl %eax
-	popw %si
 	ret
 
+# parameters
+# %eax = number
+# no return
 println_d:
 	call print_d
 	pushw %si
@@ -277,19 +386,23 @@ clear:
 	popw %ax
 	ret
 
-welcome_str:
-	.asciz "BOOTLD.SYS EXECUTED"
+welcome_str: .asciz "BOOTLD.SYS EXECUTED"
+halt_str: .asciz "HALTED"
 
-halt_str:
-	.asciz "HALTED"
+enabled_str: .asciz "Enabled"
+disabled_str: .asciz "Disabled"
 
-enabled_str:
-	.asciz "Enabled"
+newline_str: .asciz "\r\n"
+tab_str: .asciz "    "
 
-disabled_str:
-	.asciz "Disabled"
-
-newline_str:
-	.asciz "\r\n"
+eax_str: .asciz "eax"
+ebx_str: .asciz "ebx"
+ecx_str: .asciz "ecx"
+edx_str: .asciz "edx"
+esp_str: .asciz "esp"
+ebp_str: .asciz "ebp"
+esi_str: .asciz "esi"
+edi_str: .asciz "edi"
+eip_str: .asciz "eip"
 
 bottom:
