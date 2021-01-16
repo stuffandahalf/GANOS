@@ -17,21 +17,24 @@ top:
 	ret
 
 _start:
+	# welcome prompt
 	call clear
 	movw $welcome_str, %si
 	call println
 	
+	# enable a20
 	movw $a20_str, %si
 	call print
 	call enable_a20
-	#call check_a20
-	jc 1f
-	movw $enabled_str, %si
-	jmp 2f
-1:
+	jnc 1f
 	movw $disabled_str, %si
-2:
 	call println
+	jmp halt
+1:
+	movw $enabled_str, %si
+	call println
+	
+	
 
 halt:
 	pushw %ds
