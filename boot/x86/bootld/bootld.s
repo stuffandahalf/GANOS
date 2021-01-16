@@ -6,7 +6,7 @@
 	.set LOADER_SZ, (bottom - top)
 	
 top:
-	/* relocate to 0x600 */
+	# relocate to 0x600
 	movw $LINK_ADDR, %sp
 	movw $LOAD_ADDR, %si
 	movw $LINK_ADDR, %di
@@ -62,14 +62,14 @@ enable_a20:
 	call enable_a20_kb
 	call check_a20
 	jnc 3f
-/*	call enable_a20_fast
-	movw $50, %cx
+	call enable_a20_fast
+	movw $30, %cx
 1:
 	call check_a20
 	jnc 3f
 	decw %cx
 	jnz 1b
-2:*/
+2:
 	popf
 	stc
 	jmp 4f
@@ -141,14 +141,14 @@ enable_a20_bios:
 	pushw %bx
 	pushf
 	
-	/* check for bios support for a20 */
+	# check for bios support for a20
 	movw $0x2403, %ax
 	int $0x15
 	testw %ax, %ax
 	jz 1f
 	jc 1f
 	
-	/* attempt to enable a20 */
+	# attempt to enable a20
 	movw $0x2401, %ax
 	int $0x15
 	
@@ -159,6 +159,36 @@ enable_a20_bios:
 	ret
 
 enable_a20_kb:
+	pushw %ax
+	pushw %cx
+	cli
+	
+	movw $30, %cx
+1:	# busy?
+	decw %cx
+	jz 3f
+	inb $0x64, %al
+	testb $0x02, %al
+	jnz 1b
+	
+	# write output port
+	movb $0xd1, %al
+	outb %al, $0x64
+	
+2:	# busy?
+	inb $0x64, %al
+	testb $0x02, %al
+	jnz 2b
+	
+	# enable a20
+	movb $0xdf, %al
+	outb %al, $0x60
+3:
+	sti
+	popw %cx
+	popw %ax
+	ret
+/*	
 	pushw %ax
 	cli
 	
@@ -208,7 +238,8 @@ a20_wait2:
 	inb $0x64, %al
 	testb $0x01, %al
 	jz 1b
-	ret
+	popw %ax
+	ret*/
 
 enable_a20_fast:
 	pushw %ax
