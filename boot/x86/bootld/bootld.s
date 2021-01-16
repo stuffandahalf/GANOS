@@ -21,15 +21,17 @@ _start:
 	movw $welcome_str, %si
 	call println
 	
-	call check_a20
-	jnc 1f
+	movw $a20_str, %si
+	call print
+	call enable_a20
+	#call check_a20
+	jc 1f
 	movw $enabled_str, %si
-	call println
 	jmp 2f
 1:
 	movw $disabled_str, %si
-	call println
 2:
+	call println
 
 halt:
 	pushw %ds
@@ -44,23 +46,52 @@ halt:
 	cli
 	hlt
 
-	.org top+1024
+	#.org top+1024
 
+# no parameters
+# sets carry flag if a20 not enabled
 enable_a20:
+	pushw %cx
+	pushf
+	call check_a20
+	jnc 3f
+	
+	call enable_a20_bios
+	call check_a20
+	jnc 3f
+	call enable_a20_kb
+	call check_a20
+	jnc 3f
+/*	call enable_a20_fast
+	movw $50, %cx
+1:
+	call check_a20
+	jnc 3f
+	decw %cx
+	jnz 1b
+2:*/
+	popf
+	stc
+	jmp 4f
+3:
+	popf
+	clc
+4:
+	popw %cx
 	ret
 
 # no parameters
 # sets carry flag if a20 not enabled
 # adapted from routine on wiki.osdev.org
 check_a20:
-	clc
-	cli
-	
 	pushw %ds
 	pushw %es
 	pushw %di
 	pushw %si
 	pushw %ax
+	pushf
+	
+	cli
 	
 	xorw %ax, %ax
 	movw %ax, %es
@@ -87,15 +118,108 @@ check_a20:
 	movb %al, %es:(%di)
 	
 	jne 1f
-	stc
 	
+	popf
+	stc
+	jmp 2f
+
 1:
+	popf
+	clc
+	
+2:
 	sti
 	popw %ax
 	popw %si
 	popw %di
 	popw %es
 	popw %ds
+	ret
+
+enable_a20_bios:
+	pushw %ax
+	pushw %bx
+	pushf
+	
+	/* check for bios support for a20 */
+	movw $0x2403, %ax
+	int $0x15
+	testw %ax, %ax
+	jz 1f
+	jc 1f
+	
+	/* attempt to enable a20 */
+	movw $0x2401, %ax
+	int $0x15
+	
+1:
+	popf
+	popw %bx
+	popw %ax
+	ret
+
+enable_a20_kb:
+	pushw %ax
+	cli
+	
+	call a20_wait
+	movb $0xad, %al
+	outb %al, $0x64
+	
+	call a20_wait
+	movb $0xd0, %al
+	outb %al, $0x64
+	
+	call a20_wait2
+	inb $0x60, %al
+	pushl %eax
+	
+	call a20_wait
+	movb $0xd1, %al
+	outb %al, $0x64
+	
+	call a20_wait
+	popl %eax
+	orb $0x02, %al
+	outb %al, $0x60
+	
+	call a20_wait
+	movb $0xae, %al
+	outb %al, $0x64
+	
+	call a20_wait
+	
+	sti
+	popw %ax
+	ret
+
+a20_wait:
+	pushw %ax
+1:
+	inb $0x64, %al
+	testb $0x02, %al
+	jnz 1b
+	popw %ax
+	ret
+
+a20_wait2:
+	pushw %ax
+1:
+	inb $0x64, %al
+	testb $0x01, %al
+	jz 1b
+	ret
+
+enable_a20_fast:
+	pushw %ax
+	inb $0x92, %al
+	testb $0x02, %al
+	jnz 1f
+	orb $0x02, %al
+	andb $0xfe, %al
+	outb %al, $0x92
+1:
+	popw %ax
 	ret
 
 reg32_dump:
@@ -194,10 +318,8 @@ reg32_dump:
 	call print
 	call println_x
 	
-	#call 1f
 1:
 	xorl %eax, %eax
-	#popw %ax
 	movw 2(%bp), %ax
 	movw $eip_str, %si
 	call print
@@ -389,8 +511,10 @@ clear:
 welcome_str: .asciz "BOOTLD.SYS EXECUTED"
 halt_str: .asciz "HALTED"
 
-enabled_str: .asciz "Enabled"
-disabled_str: .asciz "Disabled"
+enabled_str: .asciz "enabled"
+disabled_str: .asciz "disabled"
+
+a20_str: .asciz "a20 "
 
 newline_str: .asciz "\r\n"
 tab_str: .asciz "    "
