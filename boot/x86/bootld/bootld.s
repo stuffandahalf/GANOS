@@ -22,6 +22,15 @@ _start:
 	movw $welcome_str, %si
 	call println
 	
+	# print processor brand
+	call print_proc
+	jnc 1f
+	movw $cpuid_str, %si
+	call print
+	movw $ns_str, %si
+	call println
+1:
+	
 	# enable a20
 	movw $a20_str, %si
 	call print
@@ -542,13 +551,60 @@ clear:
 	popw %ax
 	ret
 
+print_proc:
+	pushl %eax
+	pushl %ebx
+	pushl %ecx
+	pushl %edx
+	
+	movl $0x80000000, %eax
+	cpuid
+	cmpl $0x80000004, %eax
+	jae 1f
+	stc
+1:
+	pushw $0
+	movl $0x80000004, %eax
+	cpuid
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+	
+	movl $0x80000003, %eax
+	cpuid
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+	
+	movl $0x80000002, %eax
+	cpuid
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	pushl %eax
+	
+	movw %sp, %si
+	call println
+	addw $50, %sp
+2:
+	popl %edx
+	popl %ecx
+	popl %ebx
+	popl %eax
+	ret
+
 welcome_str: .asciz "BOOTLD.SYS EXECUTED"
 halt_str: .asciz "HALTED"
 
 enabled_str: .asciz "enabled"
 disabled_str: .asciz "disabled"
 
+ns_str: .asciz "not supported"
+
 a20_str: .asciz "a20 "
+cpuid_str: .asciz "cpuid "
 
 newline_str: .asciz "\r\n"
 tab_str: .asciz "    "
