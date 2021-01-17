@@ -16,21 +16,26 @@
 	.globl _start
 	
 	.set LOAD_ADDR, 0x7e00
-	.set LINK_ADDR, 0x0600
+	.set LINK_ADDR, top
 	.set LOADER_SZ, (bottom - top)
+	.set FAT_ADDR, bottom
+	.set FILE_ADDR, 0x2000
 	
 top:
-	# relocate to 0x600
+	# relocate to LINK_ADDR
 	movw $LINK_ADDR, %sp
 	movw $LOAD_ADDR, %si
 	movw $LINK_ADDR, %di
 	movw $LOADER_SZ, %cx
 	rep movsb
 	
+	# long jump to target
 	pushw $_start
 	ret
 
 _start:
+	movb %dl, drive		# finally save drive number so %dx is available
+
 	# welcome prompt
 	call clear
 	movw $welcome_str, %si
@@ -57,7 +62,14 @@ _start:
 	movw $enabled_str, %si
 	call println
 	
+	# initialize disk io
+	call init_disk
+	
 	#call go_unreal
+	
+	#movw $kernel_path, %si
+	#call load_file
+	
 
 halt:
 	pushw %ds
@@ -69,6 +81,7 @@ halt:
 	popw %si
 	popw %ds
 	call reg32_dump
+	cli
 	hlt
 
 	#.org top+1024
@@ -213,58 +226,6 @@ enable_a20_kb:
 	popw %cx
 	popw %ax
 	ret
-/*	
-	pushw %ax
-	cli
-	
-	call a20_wait
-	movb $0xad, %al
-	outb %al, $0x64
-	
-	call a20_wait
-	movb $0xd0, %al
-	outb %al, $0x64
-	
-	call a20_wait2
-	inb $0x60, %al
-	pushl %eax
-	
-	call a20_wait
-	movb $0xd1, %al
-	outb %al, $0x64
-	
-	call a20_wait
-	popl %eax
-	orb $0x02, %al
-	outb %al, $0x60
-	
-	call a20_wait
-	movb $0xae, %al
-	outb %al, $0x64
-	
-	call a20_wait
-	
-	sti
-	popw %ax
-	ret
-
-a20_wait:
-	pushw %ax
-1:
-	inb $0x64, %al
-	testb $0x02, %al
-	jnz 1b
-	popw %ax
-	ret
-
-a20_wait2:
-	pushw %ax
-1:
-	inb $0x64, %al
-	testb $0x01, %al
-	jz 1b
-	popw %ax
-	ret*/
 
 enable_a20_fast:
 	pushw %ax
@@ -275,6 +236,54 @@ enable_a20_fast:
 	andb $0xfe, %al
 	outb %al, $0x92
 1:
+	popw %ax
+	ret
+
+# initializes disk for reading files
+init_disk:
+	pushw %ax
+	pushw %bx
+	pushw %cx
+	pushw %dx
+	pushw %es
+	pushw %di
+	
+	# get drive parameters
+	movb drive, %dl
+	movb $0x08, %ah
+	xorw %di, %di
+	movw %di, %es
+	int $0x13
+	
+	incb %dh
+	movb %dh, heads
+	
+	movb %ch, %bl
+	movb %cl, %bh
+	shrb $6, %bh
+	incw %bx
+	movw %bx, cylinders
+	
+	andb $0x3f, %cl
+	movb %cl, sectors
+	
+	# reset chs address to first sector of device
+	xorb %dh, %dh
+	movw $1, %cx
+	movb drive, %dh
+	
+	testb $0x80, drive	# check if current drive is a hard disk
+	jz 1f
+	
+	
+	
+1:
+	
+	popw %di
+	popw %es
+	popw %dx
+	popw %cx
+	popw %bx
 	popw %ax
 	ret
 
@@ -323,50 +332,50 @@ reg32_dump:
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 	movl %ecx, %eax
 	movw $ecx_str, %si
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 	movl %edx, %eax
 	movw $edx_str, %si
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 	movl %ebx, %eax
 	movw $ebx_str, %si
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 	movl %esp, %eax
 	movw $esp_str, %si
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 	pushw %bp
 	movw (%bp), %bp
@@ -376,10 +385,10 @@ reg32_dump:
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 	movw -4(%bp), %si
 	movl %esi, %eax
@@ -387,10 +396,10 @@ reg32_dump:
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 	pushw %di
 	movw -2(%bp), %di
@@ -400,10 +409,10 @@ reg32_dump:
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
 	
 1:
 	xorl %eax, %eax
@@ -412,10 +421,54 @@ reg32_dump:
 	call print
 	movw %di, %si
 	call print
-	call print_d
+	call print_x
 	movw %di, %si
 	call print
-	call println_x
+	call println_d
+	
+	pushw %cs
+	popw %ax
+	movw $cs_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_x
+	movw %di, %si
+	call print
+	call println_d
+	
+	pushw %ss
+	popw %ax
+	movw $ss_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_x
+	movw %di, %si
+	call print
+	call println_d
+	
+	pushw %ds
+	popw %ax
+	movw $ss_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_x
+	movw %di, %si
+	call print
+	call println_d
+	
+	pushw %es
+	popw %ax
+	movw $es_str, %si
+	call print
+	movw %di, %si
+	call print
+	call print_x
+	movw %di, %si
+	call print
+	call println_d
 	
 	popl %eax
 	popw %si
@@ -538,7 +591,7 @@ print_d:
 	movw $(0x0e << 8 + '0'), %ax
 	int $0x10
 	popw %ax
-	jmp 3f
+	jmp 4f
 
 1:
 	movl $10, %ebx
@@ -662,15 +715,22 @@ ebp_str: .asciz "ebp"
 esi_str: .asciz "esi"
 edi_str: .asciz "edi"
 eip_str: .asciz "eip"
+cs_str: .asciz "cs"
+ss_str: .asciz "ss"
+ds_str: .asciz "ds"
+es_str: .asciz "es"
+
+drive: .byte 0
+heads: .byte 0
+cylinders: .word 0
+sectors: .byte 0
 
 gdt_info:
 	.word gdt_end - gdt - 1
 	.long gdt
 
-gdt:
-	.long 0, 0
-flatdesc:
-	.byte 0xff, 0xff, 0, 0, 0, 0b10010010, 0b11001111, 0
+gdt: .long 0, 0
+flatdesc: .byte 0xff, 0xff, 0, 0, 0, 0b10010010, 0b11001111, 0
 gdt_end:
 
 bottom:

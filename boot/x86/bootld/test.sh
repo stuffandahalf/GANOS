@@ -9,18 +9,5 @@ if [ -z $DEVICE ]; then
 	exit 1
 fi
 
-if [ -e ./mnt ]; then
-	rmdir ./mnt
-fi
-
-make all
-cd minikern && make && cd ..
-mkdir ./mnt
-sudo mount $DEVICE ./mnt
-sudo cp ./bootld.sys ./mnt/
-sudo cp ./minikern/minikern ./mnt/
-sudo umount ./mnt
-rmdir ./mnt
-
 qemu-system-i386 -fda $DEVICE $QEMU_FLAGS
 

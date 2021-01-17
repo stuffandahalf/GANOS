@@ -14,6 +14,9 @@
 
 	.code16
 	.globl _start
+	
+	.set LOAD_SEGMENT, 0x07e0
+	.set LOAD_ADDRESS, 0x0000
 
 top:
 
@@ -151,7 +154,7 @@ load_file:
 	call print
 
 	movw %es:26(%bx), %ax /* first cluster number */
-	movw $0x07e0, %bx
+	movw $LOAD_SEGMENT, %bx
 	movw %bx, %es
 	xorw %bx, %bx
 	
