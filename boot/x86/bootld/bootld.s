@@ -1,3 +1,17 @@
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Copyright (C) 2021 Gregory Norton <gregory.norton@me.com>
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, version 3.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+
 	.code16
 	.globl _start
 	
@@ -43,7 +57,7 @@ _start:
 	movw $enabled_str, %si
 	call println
 	
-	
+	#call go_unreal
 
 halt:
 	pushw %ds
@@ -55,7 +69,6 @@ halt:
 	popw %si
 	popw %ds
 	call reg32_dump
-	cli
 	hlt
 
 	#.org top+1024
@@ -263,6 +276,37 @@ enable_a20_fast:
 	outb %al, $0x92
 1:
 	popw %ax
+	ret
+
+# enter unreal mode
+# routine adapted from wiki.osdev.org
+go_unreal:
+	cli
+	pushw %ds
+	pushw %ax
+	pushw %bx
+	
+	# load gdt
+	lgdt gdt_info
+	
+	# enter protected mode
+	movl %cr0, %eax
+	orb $1, %al
+	movl %eax, %cr0
+	jmp 1f
+1:
+	# select descriptor 1
+	movw $0x08, %bx
+	movw %bx, %ds
+	
+	# back to real mode
+	andb $0xfe, %al
+	
+	popw %bx
+	popw %ax
+	popw %ds
+	sti
+	
 	ret
 
 reg32_dump:
@@ -618,5 +662,15 @@ ebp_str: .asciz "ebp"
 esi_str: .asciz "esi"
 edi_str: .asciz "edi"
 eip_str: .asciz "eip"
+
+gdt_info:
+	.word gdt_end - gdt - 1
+	.long gdt
+
+gdt:
+	.long 0, 0
+flatdesc:
+	.byte 0xff, 0xff, 0, 0, 0, 0b10010010, 0b11001111, 0
+gdt_end:
 
 bottom:

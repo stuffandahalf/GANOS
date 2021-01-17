@@ -1,9 +1,9 @@
 .POSIX:
 
-CFLAGS+=-m32 -ffreestanding -std=c99 -fPIE
-LDFLAGS+=-m32 -nostdlib -static
+CFLAGS+=-ffreestanding -fPIE -m32 
+LDFLAGS+=-nostdlib -static -m32
 
-TARGET=kern
+TARGET=minikern
 OBJS=entry.o
 
 all: $(TARGET)
