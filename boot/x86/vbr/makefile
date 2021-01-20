@@ -1,6 +1,7 @@
 .POSIX:
 
 LDFLAGS+=-Ttext 0x7c00 --oformat binary
+#LDFLAGS+=-Ttext 0x0500 --oformat binary
 
 TARGET=vbr.bin
 OBJS=vbr.o
