@@ -3,7 +3,7 @@
 TARGET=pmbr.bin
 OBJS=pmbr.o
 
-LDFLAGS+=-Ttext 0x7c00 --oformat binary
+LDFLAGS+=-Ttext 0x0800 --oformat binary
 
 all: $(TARGET)
 
