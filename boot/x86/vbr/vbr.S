@@ -12,60 +12,126 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 
+	/*#define NEED_SPACE 1*/
+	#define HALT cli; hlt
+
 	.code16
 	.globl _start
 	
-	.set LOAD_SEGMENT, 0x07e0
-	.set LOAD_ADDRESS, 0x0000
+	.set STACK_BOTTOM, 0x0600
+	.set LOAD_ADDRESS, 0x7c00
+	.set LINK_ADDRESS, top
+	.set TARGET_ADDRESS, bottom
 
 top:
 
-bpb:
 	jmp _start
 	nop
-	.ascii "ALiX    "		/* OEM */
-	.word 512				/* bytes per sector */
-	.byte 1					/* sectors per cluster */
-	.word 1					/* reserved sectors */
-	.byte 2					/* number of fat tables */
-	.word 224				/* number of root directory entries */
-	.word 2880				/* total number of sectors */
-	.byte 0xf0				/* media descriptor */
-	.word 9					/* sectors per FAT */
-	.word 18				/* sectors per track */
-	.word 2					/* number of heads */
-	.word 0					/* hidden sectors */
-#ebpb:
-#	.word 0					/* hidden sectors (high word) */
-#	.double 2879			/* total number of sectors in filesystem */
-#	.byte 0					/* logical drive number */
-#	.byte 0					/* reserved */
-#	.byte 0x29				/* extended signature */
-#	.double 0				/* serial number */
-#	.ascii "ALiX BOOT  "	/* volume name */
-#	.ascii "FAT12   "		/* Filesystem type */
+	.ascii "ALiX    "		# OEM
+bpb:
+	.word 512				# offset 0, bytes per sector
+	.byte 1					# offset 2, sectors per cluster
+	.word 1					# offset 3, reserved sectors
+	.byte 2					# offset 5, number of fat tables
+	.word 224				# offset 6, number of root directory entries
+	.word 2880				# offset 8, total number of sectors
+	.byte 0xf0				# offset 10, media descriptor
+	.word 9					# offset 11, sectors per FAT
+	.word 18				# offset 13, sectors per track
+	.word 2					# offset 15, number of heads
+	.long 0					# offset 17, hidden sectors
+	.long 0					# offset 21, number of sectors (if offset 8 is 0)
+ebpb:
+	.byte 0					# offset 25, drive number
+	.byte 0					# offset 26, reserved
+#ifdef NEED_SPACE
+	.byte 0x28				# offset 27, extended boot signature
+#else
+	.byte 0x29				# offset 27, extended boot signature
+#endif
+	.long 0					# offset 28, volume id / serial number
+#ifndef NEED_SPACE
+	.ascii "ALiX BOOT  "	# offset 32, partition volume label
+	.ascii "FAT12   "		# offset 43, file system type
+#endif
 
 _start:
 	cli
 	xorw %ax, %ax
+	movw %ax, %ss
+	movw $STACK_BOTTOM, %sp
+	movw %sp, %bp
+	
+	pushw %ds
+	pushw %es
+	pushw %si
+	pushw %di
+	pushw %dx
+	
 	movw %ax, %ds
 	movw %ax, %es
-	movw %ax, %ss
-	movw $top, %sp
-
-	pushw %ax
-	pushw $begin
-	lret
+	
+	movw $LOAD_ADDRESS, %si
+	movw $LINK_ADDRESS, %di
+	movw $(bottom-top), %cx
+	rep movsb
+	
+	ljmp $0x0000, $begin
 
 begin: /* normalized segments and IP */
 	sti
+	
+	movw $bpb, %di
+	movb %dl, 25(%di)
+	
+	# get accurate disk parameters
+	pushw %di
+	xorw %di, %di
+	movb $0x08, %ah
+	int $0x13
+	popw %di
+	
+	xorb %dl, %dl
+	xchgb %dh, %dl
+	incw %dx
+	movw %dx, 15(%di)
+	
+	pushw %cx
+	andw $0x003F, %cx
+	movw %cx, 13(%di)
+	
+	popw %cx
+	xchgb %ch, %cl
+	shrb $6, %ch
+	incw %cx
+	
+	# get first sector of partition
+	movw -4(%bp), %es
+	movw -6(%bp), %ax
+	movb $0xfe, %al
+	movw %ax, %si
+	movw %es:(%si), %ax
+	cmpw $0xaa55, %ax
+	jne 1f
+	movw -6(%bp), %si
+	movl %es:8(%si), %eax
+	movl %es:12(%si), %ecx
+	jmp 2f
+1:
+	xorl %eax, %eax
+	incl %eax
+2:
 
+halt:
+	hlt
+
+#if 0
 load_fat: /* load FAT */
 	/* load FAT to address 0x0500 */
 	movw $load_fat_str, %si
 	call print
 	
-	movw bpb+22, %ax /* sectors per FAT */
+	movw 11(%di), %ax /* sectors per FAT */
 	movw $0x0050, %bx
 	movw %bx, %es /* target segment */
 	xorw %bx, %bx /* target offset */
@@ -80,7 +146,9 @@ load_fat: /* load FAT */
 	movw %es:1(%bx), %ax
 	shrw $4, %ax
 	movw %ax, eoc
-
+#endif
+	
+#if 0
 load_root: /* load root directory */
 	pushw %cx
 	movb bpb+16, %cl /* number of FAT tables */
@@ -321,7 +389,7 @@ add_chs:
 	
 	popw %bx
 	ret
-	
+#endif
 
 target_file:
 	.ascii "BOOTLD  SYS"
@@ -347,5 +415,6 @@ halt_str:
 	.org top+510
 
 boot_sig:
-	.byte 0x55
-	.byte 0xaa
+	.byte 0x55, 0xaa
+	
+bottom:
