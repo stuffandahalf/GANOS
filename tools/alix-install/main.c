@@ -1,17 +1,34 @@
+/*
+ * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * Copyright (C) 2021 Gregory Norton <gregory.norton@me.com>
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, version 3
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY of FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include <fcntl.h>
+#include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 #include "partman.h"
 
-int configure(int argc, char **argv);
-
-//char device[PATH_MAX + 1];
 size_t dev_path_len = 0;
 char *dev_path = NULL;
 int fd = -1;
+
+int configure(int argc, char **argv);
 
 void release(void)
 {
@@ -24,6 +41,7 @@ int main(int argc, char **argv)
 {
 	char *c;
 	
+	setlocale(LC_ALL, "");
 	atexit(release);
 	
 	if (!configure(argc, argv)) {
