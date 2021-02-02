@@ -24,26 +24,27 @@ main(int argc, char **argv)
 	setlocale(LC_ALL, "");
 	atexit(release);
 
-	if (!configure(argc, argv))
+	if (!configure(argc, argv)) {
 		return 1;
+	}
 	if (!outf) {
 		outf = fopen("lex.yy.c", "w");
 	}
 
-	if (infnames) {
+	if (infiles > 0) {
 		int i;
-		for (i = infiles; i < argv; i++) {
-			if (!strcmp("-", argv[i])) {
-				fp = stdin;
+		for (i = infiles; i < argc; i++) {
+			if (argv[i][0] == '-' && argv[i][1] == '\0') {
+				parse(stdin);
 			} else {
 				FILE *fp = fopen(argv[i], "r");
 				if (!fp) {
-					fprintf(stderr, "Failed to open file %s\n", *fname);
+					fprintf(stderr, "Failed to open file %s\n", argv[i]);
 					return 1;
 				}
+				parse(fp);
+				fclose(fp);
 			}
-			parse(fp);
-			fclose(fp);
 		}
 	} else {
 		parse(stdin);
