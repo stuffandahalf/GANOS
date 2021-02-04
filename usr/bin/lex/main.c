@@ -18,17 +18,22 @@
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define SECTION_DEFINITIONS	0
 #define SECTION_RULES		1
 #define SECTION_SUBROUTINES	2
 
+//#define CHUNK_SIZE	64
+#define CHUNK_SIZE	12
+
 int verbose = 0;
 int closeout = 1;
 FILE *outf = NULL;
 int infiles = -1;
 int section = SECTION_DEFINITIONS;
+char *fname = NULL;
 size_t line = 1;
 size_t col = 1;
 
@@ -68,6 +73,7 @@ main(int argc, char **argv)
 		int i;
 		for (i = infiles; i < argc; i++) {
 			if (argv[i][0] == '-' && argv[i][1] == '\0') {
+				fname = "<stdin>";
 				parse(stdin);
 			} else {
 				FILE *fp = fopen(argv[i], "r");
@@ -76,11 +82,13 @@ main(int argc, char **argv)
 					perror(NULL);
 					return 1;
 				}
+				fname = argv[i];
 				parse(fp);
 				fclose(fp);
 			}
 		}
 	} else {
+		fname = "<stdin>";
 		parse(stdin);
 	}
 
@@ -123,23 +131,46 @@ configure(int argc, char **argv)
 int
 parse(FILE *fp)
 {
-	char buffer[512];
-	while (fgets(buffer, 512, fp) != NULL) {
+	char chunk[CHUNK_SIZE];
+	size_t buffersz = CHUNK_SIZE;
+	char *line = malloc(sizeof(char) * buffersz);
+	if (!line) {
+		perror("Failed to allocate line buffer");
+		return 0;
+	}
+	while (fgets(line, buffersz, fp)) {
 		char *c;
-		size_t len = 0;
-		for (c = buffer; *c != '\n'; c++) {
-			len++;
+		size_t linesz = strlen(line);
+
+		while (!strchr(line, '\n') && !feof(fp)) {
+			if ((buffersz - linesz - 1) == 0) {
+				buffersz += CHUNK_SIZE;
+				line = realloc(line, sizeof(char) * buffersz);
+			}
+			char *eol;
+			for (eol = line; *eol != '\0'; eol++);
+			if (!fgets(eol, buffersz - linesz/* - 1*/, fp)) {
+				fprintf(stderr, "Failed to read line\n");
+				return 0;
+			}
+			linesz = strlen(line);
 		}
-		*c = '\0';
+		
+		/* strip whitespace from end of line */	
+		for (c = line; *c != '\0'; c++);
 		for (c--; isspace(*c); c--) {
 			*c = '\0';
-			len--;
 		}
-		printf("%s\n", buffer);
-		if (!parsesec[section](fp, buffer)) {
+		printf("%s\n", line);
+
+
+		if (!parsesec[section](fp, line)) {
 			return 0;
 		}
+//		line++;
 	}
+	printf("line address is %p\n", line);
+	free(line);
 	/*perror(NULL);*/
 	return 1;
 }
