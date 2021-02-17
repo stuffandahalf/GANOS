@@ -6,45 +6,54 @@
 
 #define CHUNK_SIZE 12
 
+#if __STDC_VERSION__ < 199901L
+#define restrict
+#endif
+
 ssize_t
-getline(char **buffer, size_t *buffer_sz, FILE *fp)
+getdelim(char **restrict lineptr, size_t *restrict n, int delimiter,
+	FILE *restrict stream)
 {
-	char *c;
-	ssize_t line_sz = 0;
+	int c = 0;
+	ssize_t len = 0;
 	
-	if (buffer == NULL || buffer_sz == NULL) {
+	if (!lineptr || !n) {
 		errno = EINVAL;
 		return -1;
 	}
 	
-	if (!*buffer || !*buffer_sz) {
-		*buffer_sz = CHUNK_SIZE;
-		*buffer = calloc(*buffer_sz, sizeof(char));
-		if (!*buffer) {
-			//perror("Failed to allocate line buffer");
+	if (!*lineptr || !*n) {
+		*lineptr = malloc(sizeof(char) * CHUNK_SIZE);
+		if (!*lineptr) {
 			errno = ENOMEM;
 			return -1;
 		}
+		*n = CHUNK_SIZE;
 	}
 	
-	if (!fgets(*buffer, *buffer_sz, fp)) {
-		return -1;
-	}
-	
-	line_sz = strlen(*buffer);
-	while (!feof(fp) && !strchr(*buffer, '\n')) {
-		if (*buffer_sz - line_sz - 1 == 0) {
-			*buffer_sz += CHUNK_SIZE;
-			*buffer = realloc(*buffer, *buffer_sz);
-			if (!*buffer) {
+	while (c != delimiter && (c = fgetc(stream)) != EOF) {
+		if (len == *n - 2) {
+			*lineptr = realloc(*lineptr, sizeof(char) * (*n + CHUNK_SIZE));
+			if (!*lineptr) {
 				errno = ENOMEM;
 				return -1;
 			}
+			*n += CHUNK_SIZE;
 		}
-		for (c = *buffer; *c != '\0'; c++);
-		fgets(c, *buffer_sz - line_sz, fp);
-		line_sz = strlen(*buffer);
+		(*lineptr)[len++] = c;
+		if (c == delimiter) {
+			(*lineptr)[len] = '\0';
+		}
+	}
+	if (!len && c == EOF) {
+		return -1;
 	}
 	
-	return line_sz;
+	return len;
+}
+
+ssize_t
+getline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream)
+{
+	return getdelim(lineptr, n, '\n', stream);
 }
