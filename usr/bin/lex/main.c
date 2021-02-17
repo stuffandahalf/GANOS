@@ -98,7 +98,6 @@ getline(char **buffer, size_t *buffer_sz, FILE *fp)
 		*buffer_sz = CHUNK_SIZE;
 		*buffer = calloc(*buffer_sz, sizeof(char));
 		if (!*buffer) {
-			//perror("Failed to allocate line buffer");
 			errno = ENOMEM;
 			return -1;
 		}
@@ -119,14 +118,9 @@ getline(char **buffer, size_t *buffer_sz, FILE *fp)
 			}
 		}
 		for (c = *buffer; *c != '\0'; c++);
-		fprintf(stderr, "%d\n", *buffer_sz - line_sz - 1);
 		fgets(c, *buffer_sz - line_sz, fp);
-		fprintf(stderr, "Buffer currently contains: %s\n", *buffer);
 		line_sz = strlen(*buffer);
 	}
-	
-	
-	line++;
 	
 	return line_sz;
 }
@@ -172,13 +166,7 @@ main(int argc, char **argv)
 		}
 	} else {
 		fname = "<stdin>";
-		//parse(stdin);
-		char *buffer = NULL;
-		size_t buffer_sz = 0;
-		while (getline(&buffer, &buffer_sz, stdin) > 0) {
-			fprintf(stderr, "%s\n", buffer);
-		}
-		free(buffer);
+		parse(stdin);
 	}
 
 	return 0;
@@ -217,52 +205,28 @@ configure(int argc, char **argv)
 	return 1;
 }
 
-// RELOCATE LINE READIDNG LOGIC TO FUNCTION SO BLOCKS CAN BE READ
 int
 parse(FILE *fp)
 {
-	char chunk[CHUNK_SIZE];
-	size_t buffersz = CHUNK_SIZE;
-	char *line = malloc(sizeof(char) * buffersz);
-	if (!line) {
-		perror("Failed to allocate line buffer");
+	char *buffer = NULL;
+	size_t buffer_sz = 0;
+	ssize_t line_len;
+	
+	while ((line_len = getline(&buffer, &buffer_sz, fp)) != -1) {
+		line++;
+		fprintf(stderr, "%s\n", buffer);
+		if (section <= SECTION_MAX && buffer[0] == '%' && buffer[1] == '%' &&
+			isspace(buffer[2])) {
+			section++;
+		} else {
+			parsesec[section](fp, buffer);
+		}
+	}
+	free(buffer);
+	if (ferror(fp)) {
+		perror(NULL);
 		return 0;
 	}
-	while (fgets(line, buffersz, fp)) {
-		char *c;
-		size_t linesz = strlen(line);
-
-		while (!strchr(line, '\n') && !feof(fp)) {
-			if ((buffersz - linesz - 1) == 0) {
-				buffersz += CHUNK_SIZE;
-				line = realloc(line, sizeof(char) * buffersz);
-			}
-			char *eol;
-			for (eol = line; *eol != '\0'; eol++);
-			if (!fgets(eol, buffersz - linesz/* - 1*/, fp)) {
-				fprintf(stderr, "Failed to read line\n");
-				return 0;
-			}
-			linesz = strlen(line);
-		}
-		
-		/* strip whitespace from end of line */	
-		for (c = line; *c != '\0'; c++);
-		for (c--; isspace(*c); c--) {
-			*c = '\0';
-		}
-		printf("%s\n", line);
-		if (line[0] == '%' && line[1] == '%' && line[2] == '\0' &&
-			section <= SECTION_MAX) {
-			section++;
-		} else if (!parsesec[section](fp, line)) {
-			return 0;
-		}
-//		line++;
-	}
-	printf("line address is %p\n", line);
-	free(line);
-	/*perror(NULL);*/
 	return 1;
 }
 
@@ -270,7 +234,12 @@ int
 parse_definitions(FILE *fp, char *buffer)
 {
 	fprintf(stderr, "parse_definitions\n");
-	for (; isspace(*buffer); buffer++);
+	for (; *buffer != '\0' && isspace(*buffer); buffer++);
+	if (*buffer == '%') {
+		// command sequence
+	} else {
+		// macro
+	}
 	return 1;
 }
 
@@ -285,6 +254,7 @@ int
 parse_subroutines(FILE *fp, char *buffer)
 {
 	fprintf(stderr, "parse_subroutines\n");
+	fprintf(outf, "%s", buffer);
 	return 1;
 }
 
