@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  *
  * Copyright (C) 2021 Gregory Norton <gregory.norton@me.com>
- * This program is free software: you can redistribute it and/or modify it under * the terms of the GNU General Public License as published by the Free Software
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
  * Foundation, version 3
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
@@ -15,15 +16,18 @@
  */
 
 #include <ctype.h>
+#include <errno.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #define SECTION_DEFINITIONS	0
 #define SECTION_RULES		1
 #define SECTION_SUBROUTINES	2
+#define SECTION_MAX			2
 
 //#define CHUNK_SIZE	64
 #define CHUNK_SIZE	12
@@ -48,6 +52,85 @@ int (*parsesec[])(FILE *fp, char *buffer) = {
 	parse_rules,
 	parse_subroutines
 };
+
+char *
+strip_ws_trailing(char *str)
+{
+	char *c;
+	for (c = str; *c != '\0'; c++);
+	c--;
+	for(; str != c && isspace(*c); c--) {
+		*c = '\0';
+	}
+	return str;
+}
+
+char *
+strip_ws_leading(char *str)
+{
+	char *c;
+	for (c = str; *c != '\0' && isspace(*c); c++);
+	return c;
+	
+}
+
+char *
+strip_ws(char *str)
+{
+	str = strip_ws_leading(str);
+	str = strip_ws_trailing(str);
+	return str;
+}
+
+#if _POSIX_C_SOURCE < 200809L
+ssize_t
+getline(char **buffer, size_t *buffer_sz, FILE *fp)
+{
+	char *c;
+	ssize_t line_sz = 0;
+	
+	if (buffer == NULL || buffer_sz == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	
+	if (!*buffer || !*buffer_sz) {
+		*buffer_sz = CHUNK_SIZE;
+		*buffer = calloc(*buffer_sz, sizeof(char));
+		if (!*buffer) {
+			//perror("Failed to allocate line buffer");
+			errno = ENOMEM;
+			return -1;
+		}
+	}
+	
+	if (!fgets(*buffer, *buffer_sz, fp)) {
+		return -1;
+	}
+	
+	line_sz = strlen(*buffer);
+	while (!feof(fp) && !strchr(*buffer, '\n')) {
+		if (*buffer_sz - line_sz - 1 == 0) {
+			*buffer_sz += CHUNK_SIZE;
+			*buffer = realloc(*buffer, *buffer_sz);
+			if (!*buffer) {
+				errno = ENOMEM;
+				return -1;
+			}
+		}
+		for (c = *buffer; *c != '\0'; c++);
+		fprintf(stderr, "%d\n", *buffer_sz - line_sz - 1);
+		fgets(c, *buffer_sz - line_sz, fp);
+		fprintf(stderr, "Buffer currently contains: %s\n", *buffer);
+		line_sz = strlen(*buffer);
+	}
+	
+	
+	line++;
+	
+	return line_sz;
+}
+#endif
 
 void release(void)
 {
@@ -89,7 +172,13 @@ main(int argc, char **argv)
 		}
 	} else {
 		fname = "<stdin>";
-		parse(stdin);
+		//parse(stdin);
+		char *buffer = NULL;
+		size_t buffer_sz = 0;
+		while (getline(&buffer, &buffer_sz, stdin) > 0) {
+			fprintf(stderr, "%s\n", buffer);
+		}
+		free(buffer);
 	}
 
 	return 0;
@@ -128,6 +217,7 @@ configure(int argc, char **argv)
 	return 1;
 }
 
+// RELOCATE LINE READIDNG LOGIC TO FUNCTION SO BLOCKS CAN BE READ
 int
 parse(FILE *fp)
 {
@@ -162,9 +252,10 @@ parse(FILE *fp)
 			*c = '\0';
 		}
 		printf("%s\n", line);
-
-
-		if (!parsesec[section](fp, line)) {
+		if (line[0] == '%' && line[1] == '%' && line[2] == '\0' &&
+			section <= SECTION_MAX) {
+			section++;
+		} else if (!parsesec[section](fp, line)) {
 			return 0;
 		}
 //		line++;
@@ -179,6 +270,7 @@ int
 parse_definitions(FILE *fp, char *buffer)
 {
 	fprintf(stderr, "parse_definitions\n");
+	for (; isspace(*buffer); buffer++);
 	return 1;
 }
 
