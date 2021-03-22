@@ -1,5 +1,3 @@
-# SPDX-License-Identifier: GPL-3.0-only
-#
 # Copyright (C) 2021 Gregory Norton <gregory.norton@me.com>
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -11,6 +9,8 @@
 # 
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: GPL-3.0-only
 
 	.code16
 	.globl _start

@@ -41,7 +41,7 @@ elseif(ALIX_KERNEL_FORMAT STREQUAL multiboot)
 		message(FATAL_ERROR "Multiboot requires an x86 processor")
 	endif()
 	set(ALIX_KERNEL_FORMAT_MULTIBOOT 1)
-	set(MULTIBOOT_SRCS multiboot/bootstrap.s)
+	set(MULTIBOOT_SRCS multiboot/bootstrap.s multiboot/setup.c)
 	set(MULTIBOOT_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/multiboot/link.ld")
 	
 	target_sources(alix PRIVATE ${MULTIBOOT_SRCS})

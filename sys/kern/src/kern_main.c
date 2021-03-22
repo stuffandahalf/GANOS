@@ -3,14 +3,16 @@
 #include <alix/copyright.h>
 #include <alix/version.h>
 
-void kernel_main(void)
+#include <sys/system.h>
+
+void entry(struct system_info *sys_info)
 {
-	struct console cons;
+	/*struct console cons;
 
 	platform_init();
 	console_init(&cons);
 	cons.clear();
 	cons.print.s("Booting ALiX " ALIX_KERNEL_VERSION "\n");
-	cons.print.s(copyright_str);
+	cons.print.s(copyright_str);*/
 }
 
