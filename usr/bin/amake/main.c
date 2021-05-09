@@ -1,15 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <locale.h>
 
-struct var {
-	char *name;
-	char *value;
-};
-
-struct rule {
-	char *name;
-	char **commands;
-};
+#include "defs.h"
 
 const char *mkfiles[] = {
 	"./makefile",
@@ -24,14 +19,71 @@ const char *mkfiles[] = {
 };
 
 int configure(int argc, char **argv);
+int parse_file(FILE *fp);
+
+struct str *paths = NULL;
+struct str *targets = NULL;
+
+void
+cleanup(void)
+{
+	struct str *s = paths;
+	while (s) {
+		struct str *next = s->next;
+		free(s->value);
+		free(s);
+		s = next;
+	}
+}
 
 int
 main(int argc, char **argv)
 {
 	const char **path;
+	struct str *s;
+	FILE *fp = NULL;
 
-	for (path = mkfiles; *path != NULL; path++) {
-		fprintf(stderr, "%s\n", *path);
+	setlocale(LC_ALL, "");
+	atexit(cleanup);
+
+	if (configure(argc, argv)) {
+		return 1;
+	}
+
+	for (path = mkfiles; !paths && *path != NULL; path++) {
+		if (access(*path, F_OK)) {
+			continue;
+		}
+		struct str *p = malloc(sizeof(struct str));
+		if (!p) {
+			fprintf(stderr, "ERROR: Failed to allocate path buffer\n");
+			return 1;
+		}
+		p->value = malloc(sizeof(char) * (strlen(*path) + 1));
+		if (!p->value) {
+			fprintf(stderr, "ERROR: Failed to allocate path buffer\n");
+			free(p);
+			return 1;
+		}
+		strcpy(p->value, *path);
+
+		paths = p;
+	}
+
+	if (!paths) {
+		fprintf(stderr, "ERROR: No makefiles found\n");
+		return 1;
+	}
+
+	for (s = paths; s != NULL; s = s->next) {
+		printf("%s\n", s->value);
+		if (!(fp = fopen(s->value, "r"))) {
+			fprintf(stderr, "ERROR: Failed to open file \"%s\"\n", s->value);
+			return 1;
+		}
+
+		parse_file(fp);
+		fclose(fp);
 	}
 
 	return 0;
@@ -40,6 +92,9 @@ main(int argc, char **argv)
 int
 configure(int argc, char **argv)
 {
+	struct str *pend = paths;
+	struct str *p = NULL;
+
 	char c;
 	while ((c = getopt(argc, argv, "einpqrstf:kS")) != -1) {
 		switch (c) {
@@ -60,6 +115,28 @@ configure(int argc, char **argv)
 		case 't':
 			break;
 		case 'f':
+			p = malloc(sizeof(struct str));
+			if (!p) {
+				fprintf(stderr, "ERROR: Failed to allocate path buffer\n");
+				return 1;
+			}
+			p->value = malloc(sizeof(char) * (strlen(optarg) + 1));
+			if (!p->value) {
+				fprintf(stderr, "ERROR: Failed to allocate path buffer\n");
+				free(p);
+				return 1;
+			}
+			strcpy(p->value, optarg);
+			p->next = NULL;
+
+			if (pend) {
+				pend->next = p;
+			}
+			if (!paths) {
+				paths = p;
+			}
+			pend = p;
+
 			break;
 		case 'k':
 			break;
@@ -67,14 +144,24 @@ configure(int argc, char **argv)
 			break;
 		case 'h':
 		case '?':
+			fprintf(stderr, "Usage: %s [-einpqrst] [-f makefile]... [-k|-S] "
+				"[macro=value...] [target_name...]\n", argv[0]);
+			return 1;
 			break;
 		}
 	}
+	
+	return 0;
 }
 
 int
-parse_file(const char *fpath)
+parse_file(FILE *fp)
 {
 	
 }
 
+int
+evaluate_rules(void)
+{
+	
+}
