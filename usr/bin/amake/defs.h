@@ -1,6 +1,8 @@
 #ifndef DEFS_H
 #define DEFS_H
 
+#define LINE_LENGTH 200
+
 struct macro {
 	char *name;
 	char *value;

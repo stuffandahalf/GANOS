@@ -59,14 +59,12 @@ main(int argc, char **argv)
 			fprintf(stderr, "ERROR: Failed to allocate path buffer\n");
 			return 1;
 		}
-		p->value = malloc(sizeof(char) * (strlen(*path) + 1));
+		p->value = strdup(*path);
 		if (!p->value) {
-			fprintf(stderr, "ERROR: Failed to allocate path buffer\n");
+			fprintf(stderr, "ERROR: Failed to duplicate file path\n");
 			free(p);
 			return 1;
 		}
-		strcpy(p->value, *path);
-
 		paths = p;
 	}
 
@@ -77,7 +75,8 @@ main(int argc, char **argv)
 
 	for (s = paths; s != NULL; s = s->next) {
 		printf("%s\n", s->value);
-		if (!(fp = fopen(s->value, "r"))) {
+		fp = fopen(s->value, "r");
+		if (!fp) {
 			fprintf(stderr, "ERROR: Failed to open file \"%s\"\n", s->value);
 			return 1;
 		}
@@ -157,11 +156,24 @@ configure(int argc, char **argv)
 int
 parse_file(FILE *fp)
 {
+	int c;
+	size_t bufsz = LINE_LENGTH;
+	size_t bufln = 0;
+	char *buf = malloc(sizeof(char) * bufsz);
+	if (!buf) {
+		fprintf(stderr, "ERROR: Failed to allocate line buffer\n");
+		return 1;
+	}
 	
+	while ((c = fgetc(fp)) != EOF) {
+		printf("%c", c);
+	}
+	
+	return 0;
 }
 
 int
 evaluate_rules(void)
 {
-	
+	return 0;
 }
